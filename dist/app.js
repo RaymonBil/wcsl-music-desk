@@ -1248,7 +1248,7 @@ function renderPlaylists() {
     .sort((a, b) => a.created - b.created)
     .map(
       (l) =>
-        `<button data-playlist="${esc(l.id)}" class="${state.playlistId === l.id ? "active" : ""}" title="${esc(l.description)}"><span>${esc(l.name)}<small>${esc(describePlaylist(l, state.tracks))}</small></span></button>`,
+        `<div class="playlist-item${state.playlistId === l.id ? " active" : ""}"><button data-playlist="${esc(l.id)}" class="playlist-open" title="${esc(l.description)}"${state.playlistId === l.id ? ' aria-current="true"' : ""}><span>${esc(l.name)}<small>${esc(describePlaylist(l, state.tracks))}</small></span></button><button class="playlist-play" data-play-list="${esc(l.id)}" aria-label="Reproducir ${esc(l.name)}" title="Reproducir lista"${playableTracks(l).length ? "" : " disabled"}>▶</button></div>`,
     )
     .join("");
   const l = currentPlaylist();
@@ -1298,6 +1298,11 @@ function openAdd(ids) {
   $("addDialog").showModal();
 }
 $("playlistNav").onclick = (e) => {
+  const playButton = e.target.closest("[data-play-list]");
+  if (playButton) {
+    playList(state.playlists.find((l) => l.id === playButton.dataset.playList));
+    return;
+  }
   const b = e.target.closest("[data-playlist]");
   if (!b) return;
   state.playlistId = b.dataset.playlist;
@@ -1308,6 +1313,11 @@ $("playlistNav").onclick = (e) => {
     .forEach((b) => b.classList.remove("active"));
   $("sort").value = "list";
   resetFilters();
+  // En tablet y móvil las listas están encima: se baja hasta la lista abierta.
+  if (window.matchMedia("(max-width: 1023px)").matches)
+    requestAnimationFrame(() =>
+      $("playlistHeader").scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
 };
 $("newPlaylist").onclick = $("newPlaylistSide").onclick = () => openPlaylist();
 $("editPlaylist").onclick = () => openPlaylist(state.playlistId);
@@ -1441,18 +1451,25 @@ $("tracks").onchange = (e) => {
   e.target.checked ? state.selected.add(id) : state.selected.delete(id);
   renderSelection(filtered());
 };
-$("playPlaylist").onclick = () => {
-  const list = playlistTracks(currentPlaylist()).filter(
+function playableTracks(playlist) {
+  if (!playlist) return [];
+  return playlistTracks(playlist).filter(
     (track) => state.mode !== "player" || track.ready,
   );
-  if (list.length) {
-    $("continuous").checked = true;
-    play(
-      list[0].id,
-      list.map((t) => t.id),
-    );
+}
+function playList(playlist) {
+  const list = playableTracks(playlist);
+  if (!list.length) {
+    notify("Esta lista todavía no tiene canciones disponibles.");
+    return;
   }
-};
+  $("continuous").checked = true;
+  play(
+    list[0].id,
+    list.map((t) => t.id),
+  );
+}
+$("playPlaylist").onclick = () => playList(currentPlaylist());
 $("duplicatePlaylist").onclick = async () => {
   const list = currentPlaylist();
   if (!list) return;
@@ -1599,10 +1616,7 @@ for (const id of [
 }
 $("autoAnalyze").closest("label").classList.add("edit-only");
 $("saveSpeed").closest("label").classList.add("edit-only");
-$("saveSpeed")
-  .closest(".speed-panel")
-  .querySelector("small")
-  .classList.add("edit-only");
+$("saveSpeed").closest(".speed-panel").querySelector("small")?.classList.add("edit-only");
 document.querySelector(".phase-note").classList.add("edit-only");
 document
   .querySelector(".library-footer span:last-child")

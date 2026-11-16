@@ -22,16 +22,13 @@
         ◷ <span>Revisar BPM</span><b id="reviewtotal">0</b>
       </button>
       <div class="aside-label lists-label">
-        TUS LISTAS
-        <button
-          id="newPlaylistSide"
-          title="Crear lista"
-          aria-label="Crear lista"
-        >
-          ＋
+        <span>TUS LISTAS</span>
+        <button id="newPlaylistSide" class="new-list" title="Crear lista">
+          ＋ Nueva lista
         </button>
       </div>
       <div id="playlistNav" class="playlist-nav"></div>
+      <div class="aside-footer">
       <div class="local-note">
         <i></i><strong class="local-only">Audio en este ordenador</strong
         ><strong class="cloud-only">Música en la nube</strong>
@@ -45,10 +42,11 @@
         <button id="helpBtn" class="text-button">Cómo funciona ↗</button>
       </div>
       <button id="openDirect" class="primary">Modo Directo</button
-      ><small id="offlineStatus" role="status"></small
       ><button id="settingsBtn" class="secondary">Ajustes</button
+      ><small id="offlineStatus" role="status"></small
       ><small id="currentMode"></small>
       <div class="version">VERSIÓN · 0.4</div>
+      </div>
     </aside>
     <main>
       <header>
@@ -120,20 +118,25 @@
         <div class="section-top">
           <h2>Selección musical <span id="resultCount">0 temas</span></h2>
           <div class="tools">
-            <button id="publishBtn" class="secondary edit-only">
-              Publicar para el equipo</button
-            ><button id="newPlaylist" class="secondary">＋ Crear lista</button
-            ><button id="analyzeAll" class="secondary">
-              ⌁ Analizar pendientes</button
-            ><button id="backupBtn" class="secondary">
-              Copia completa (con audio)</button
-            ><button
-              id="restoreBtn"
-              class="secondary"
-              title="Recuperar una copia completa"
-            >
-              Restaurar
-            </button>
+            <button id="newPlaylist" class="secondary">＋ Crear lista</button>
+            <details class="more-menu edit-only">
+              <summary class="secondary">⋯ Más acciones</summary>
+              <div class="more-items">
+                <button id="analyzeAll" class="secondary">
+                  ⌁ Analizar BPM pendientes</button
+                ><button id="backupBtn" class="secondary">
+                  Copia completa (con audio)</button
+                ><button
+                  id="restoreBtn"
+                  class="secondary"
+                  title="Recuperar una copia completa"
+                >
+                  Restaurar copia</button
+                ><button id="publishBtn" class="secondary edit-only">
+                  Publicar para el equipo
+                </button>
+              </div>
+            </details>
           </div>
         </div>
         <div
@@ -270,33 +273,16 @@
         <span id="nowBpm" class="bpm-badge" aria-live="polite"></span>
       </div>
       <div class="transport">
-        <div class="playback-mode">
-          <label
-            ><input id="continuous" type="checkbox" checked /> Reproducción
-            continua</label
-          ><button id="openQueue" class="secondary">Ver cola (0)</button
-          ><span id="queueInfo"></span
-          ><label
-            ><input id="wakeLockToggle" type="checkbox" /> Mantener pantalla
-            activa</label
-          ><small id="wakeLockStatus" role="status"></small>
-          <label
-            >Entre canciones
-            <input
-              id="gapSeconds"
-              type="number"
-              min="0"
-              max="60"
-              step="1"
-              value="0"
-              aria-label="Segundos entre canciones"
-            />
-            s</label
-          >
-          <small id="gapStatus" role="status"></small>
-        </div>
         <div class="transport-buttons">
           <button
+            id="repeat"
+            class="icon-button"
+            title="Repetir tema"
+            aria-label="Repetir tema"
+            aria-pressed="false"
+          >
+            ↻</button
+          ><button
             id="prev"
             class="icon-button"
             title="Anterior"
@@ -312,14 +298,8 @@
             aria-label="Siguiente"
           >
             ⏭</button
-          ><button
-            id="repeat"
-            class="icon-button"
-            title="Repetir tema"
-            aria-label="Repetir tema"
-            aria-pressed="false"
-          >
-            ↻
+          ><button id="openQueue" class="queue-button" title="Ver cola">
+            Ver cola (0)
           </button>
         </div>
         <div class="timeline">
@@ -333,21 +313,19 @@
             aria-label="Posición de reproducción"
           /><span id="duration">0:00</span>
         </div>
-      </div>
-      <div class="volume">
-        <label for="volume">Volumen</label
-        ><input
-          id="volume"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value="0.8"
-        />
+        <span id="queueInfo"></span>
+        <small id="gapStatus" role="status"></small>
       </div>
       <div class="speed-panel" aria-label="Control de velocidad">
         <div class="speed-slider">
           <label for="speed">Velocidad</label
+          ><button
+            id="speedMinus"
+            class="speed-step"
+            aria-label="Reducir velocidad cinco puntos porcentuales"
+            disabled
+          >
+            −5</button
           ><input
             id="speed"
             type="range"
@@ -356,37 +334,63 @@
             step="1"
             value="100"
             disabled
-          /><output id="speedValue" for="speed">100 %</output
-          ><button id="resetSpeed" class="text-button" disabled>
-            Restablecer al 100 %
-          </button>
-        </div>
-        <div class="speed-actions">
-          <button
-            id="speedMinus"
-            class="secondary"
-            aria-label="Reducir velocidad cinco puntos porcentuales"
-            disabled
-          >
-            −5 %</button
-          ><button id="speedNormal" class="secondary" disabled>100 %</button
-          ><button
+          /><button
             id="speedPlus"
-            class="secondary"
+            class="speed-step"
             aria-label="Aumentar velocidad cinco puntos porcentuales"
             disabled
           >
-            +5 %</button
-          ><label
-            ><input id="saveSpeed" type="checkbox" disabled /> Guardar esta
-            velocidad para la canción</label
+            +5</button
+          ><output id="speedValue" for="speed">100 %</output>
+        </div>
+        <div class="speed-actions">
+          <button id="resetSpeed" class="text-button" disabled>
+            ↺ 100 %</button
+          ><button id="speedNormal" class="secondary" disabled hidden>
+            100 %</button
+          ><label title="Sin marcar: ajuste temporal. Desmarcar elimina la velocidad guardada."
+            ><input id="saveSpeed" type="checkbox" disabled /> Guardar para
+            esta canción</label
           >
         </div>
-        <small
-          >Sin marcar: ajuste temporal. Desmarcar elimina la velocidad guardada;
-          el ajuste actual sigue sonando.</small
-        >
       </div>
+      <details class="player-options">
+        <summary aria-label="Opciones de reproducción" title="Opciones de reproducción">⚙</summary>
+        <div class="player-options-panel">
+          <label
+            ><input id="continuous" type="checkbox" checked /> Reproducción
+            continua</label
+          >
+          <label
+            >Pausa entre canciones
+            <input
+              id="gapSeconds"
+              type="number"
+              min="0"
+              max="60"
+              step="1"
+              value="0"
+              aria-label="Segundos entre canciones"
+            />
+            s</label
+          >
+          <label
+            ><input id="wakeLockToggle" type="checkbox" /> Mantener pantalla
+            activa</label
+          ><small id="wakeLockStatus" role="status"></small>
+          <div class="volume">
+            <label for="volume">Volumen</label
+            ><input
+              id="volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value="0.8"
+            />
+          </div>
+        </div>
+      </details>
       <audio id="audio" preload="metadata"></audio>
     </section>
     <input
