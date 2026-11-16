@@ -682,6 +682,19 @@
           step="0.01"
           value="0.8"
       /></label>
+      <label
+        >Entre canciones<input
+          id="directGapSeconds"
+          type="number"
+          min="0"
+          max="60"
+          step="1"
+          value="0"
+          aria-label="Segundos entre canciones en Directo"
+        />
+        s</label
+      >
+      <p id="directGapStatus" role="status"></p>
       <div class="direct-options">
         <label
           ><input id="directContinuous" type="checkbox" checked /> Reproducción

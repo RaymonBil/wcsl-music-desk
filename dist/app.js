@@ -1,3 +1,4 @@
+import { createGapController } from "./gap-controls.js";
 import { createLiveController } from "./live-controls.js";
 import { prepareOfflineShell } from "./offline.js";
 import { createTeamController } from "./team-controls.js";
@@ -17,6 +18,7 @@ import {
   shiftSpeed,
   speedDescription,
   supportsBackupVersion,
+  normalizeGapSeconds,
 } from "./library-core.js";
 let team;
 let live;
@@ -39,6 +41,7 @@ const state = {
   pendingAdd: [],
   speed: 1,
   mode: "choose",
+  gapSeconds: 0,
 };
 const audio = $("audio");
 audio.volume = 0.8;
@@ -280,7 +283,7 @@ function render() {
   $("prev").disabled =
     $("next").disabled =
     $("playPause").disabled =
-      !state.tracks.length;
+      !state.tracks.some((track) => state.mode !== "player" || track.ready);
   renderSpeed();
   if (state.current) {
     const t = state.tracks.find((t) => t.id === state.current);
@@ -423,6 +426,7 @@ async function importFiles(files) {
   }
 }
 async function play(id, queue = null) {
+  gap.cancel();
   const token = ++playToken;
   if (queue) state.queue = [...queue];
   try {
@@ -525,6 +529,7 @@ function updateQueueInfo() {
     index >= 0 ? `${index + 1} / ${state.queue.length}` : "";
 }
 function advance(direction, automatic = false) {
+  gap.cancel();
   if (automatic && !$("continuous").checked) return;
   const ids = state.queue.length
     ? state.queue
@@ -535,7 +540,9 @@ function advance(direction, automatic = false) {
   const index = ids.indexOf(state.current),
     next = index < 0 ? 0 : index + direction;
   if (automatic && next >= ids.length) return;
-  play(ids[(next + ids.length) % ids.length]);
+  const nextId = ids[(next + ids.length) % ids.length];
+  if (automatic) gap.schedule(() => play(nextId), state.gapSeconds);
+  else play(nextId);
 }
 function runTempo(samples, rate) {
   return new Promise((resolve, reject) => {
@@ -1012,16 +1019,24 @@ $("analyzeAll").onclick = () =>
 $("closeEditor").onclick = () => $("editor").close();
 $("helpBtn").onclick = () => $("help").showModal();
 $("closeHelp").onclick = $("gotIt").onclick = () => $("help").close();
-$("playPause").onclick = () =>
-  state.current
-    ? play(state.current)
-    : filtered()[0] &&
-      play(
-        filtered()[0].id,
-        filtered()
-          .filter((track) => state.mode !== "player" || track.ready)
-          .map((t) => t.id),
-      );
+$("playPause").onclick = () => {
+  if (gap.waiting) {
+    gap.cancel();
+    return;
+  }
+  if (state.current) {
+    play(state.current);
+    return;
+  }
+  const available = filtered().filter(
+    (track) => state.mode !== "player" || track.ready,
+  );
+  if (available.length)
+    play(
+      available[0].id,
+      available.map((track) => track.id),
+    );
+};
 $("prev").onclick = () => advance(-1);
 $("next").onclick = () => advance(1);
 $("repeat").onclick = () => {
@@ -1333,6 +1348,8 @@ async function init() {
   try {
     db = await team.initialize(await openLibraryDatabase());
     live.setWakePreference(team.config().keepAwake);
+    state.gapSeconds = normalizeGapSeconds(team.config().gapSeconds);
+    $("gapSeconds").value = $("directGapSeconds").value = state.gapSeconds;
     prepareOfflineShell($("offlineStatus"));
     db.onversionchange = () => {
       db.close();
@@ -1365,6 +1382,7 @@ async function init() {
 async function activateDatabase(active) {
   db = active;
   playToken++;
+  gap.cancel();
   audio.pause();
   audio.removeAttribute("src");
   audio.load();
@@ -1376,6 +1394,11 @@ async function activateDatabase(active) {
   state.selected.clear();
   state.queue = [];
   state.view = "all";
+  document
+    .querySelectorAll("[data-view]")
+    .forEach((button) =>
+      button.classList.toggle("active", button.dataset.view === "all"),
+    );
   state.speed = 1;
   $("saveSpeed").checked = false;
   $("nowTitle").textContent = "Elige una canción";
@@ -1406,6 +1429,14 @@ for (const id of [
 }
 $("autoAnalyze").closest("label").classList.add("edit-only");
 $("saveSpeed").closest("label").classList.add("edit-only");
+$("saveSpeed")
+  .closest(".speed-panel")
+  .querySelector("small")
+  .classList.add("edit-only");
+document.querySelector(".phase-note").classList.add("edit-only");
+document
+  .querySelector(".library-footer span:last-child")
+  .classList.add("edit-only");
 $("tracks")
   .closest("table")
   .querySelectorAll("thead th.check-col, thead th:last-child")
@@ -1423,6 +1454,35 @@ team = createTeamController({
   audioDuration,
   setBusy,
   progress,
+});
+const gap = createGapController((remaining) => {
+  const text = remaining === null ? "" : `Siguiente canción en ${remaining} s`;
+  $("gapStatus").textContent = $("directGapStatus").textContent = text;
+  if (remaining !== null) {
+    $("playPause").setAttribute("aria-label", "Cancelar espera");
+    $("directPlay").textContent = "Cancelar espera";
+  } else if (audio.paused) {
+    $("playPause").setAttribute("aria-label", "Reproducir");
+    $("directPlay").textContent = "▶ Reproducir";
+  }
+});
+for (const id of ["gapSeconds", "directGapSeconds"]) {
+  $(id).onchange = async () => {
+    state.gapSeconds = normalizeGapSeconds(Number($(id).value));
+    $("gapSeconds").value = $("directGapSeconds").value = state.gapSeconds;
+    gap.cancel();
+    try {
+      await team.setGapSeconds(state.gapSeconds);
+    } catch {
+      notify("No se ha podido guardar la pausa entre canciones.");
+    }
+  };
+}
+$("continuous").addEventListener("change", () => {
+  if (!$("continuous").checked) gap.cancel();
+});
+$("directContinuous").addEventListener("change", () => {
+  if (!$("directContinuous").checked) gap.cancel();
 });
 live = createLiveController({
   state,

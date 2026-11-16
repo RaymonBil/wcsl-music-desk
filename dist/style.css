@@ -1382,3 +1382,13 @@ body[data-mode="player"] .row-move {
     padding: 18px 12px;
   }
 }
+#gapSeconds,
+#directGapSeconds {
+  width: 75px;
+  padding: 6px;
+  font-variant-numeric: tabular-nums;
+}
+#gapStatus,
+#directGapStatus {
+  color: var(--pink);
+}

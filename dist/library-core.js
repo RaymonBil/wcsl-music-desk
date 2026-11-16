@@ -186,3 +186,8 @@ export function playlistStats(list, tracks) {
     maxBpm: bpms.length ? Math.max(...bpms) : null,
   };
 }
+
+export function normalizeGapSeconds(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(60, Math.round(value)));
+}

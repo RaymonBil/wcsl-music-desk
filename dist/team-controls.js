@@ -187,6 +187,7 @@ export function createTeamController({
     $("teamVersion").textContent = packet
       ? `Publicación ${packet.publicationVersion} · ${new Date(packet.publishedAt).toLocaleString("es-ES")} · ${state.playlists.length} listas · ${state.tracks.length - missing.length} canciones listas · ${missing.length} pendientes`
       : "Carga el paquete wcsl-datos.json de Ray para empezar.";
+    $("missingTracks").hidden = missing.length === 0;
     $("missingTracks").innerHTML = missing.length
       ? `<summary>Faltan ${missing.length} canciones · ver archivos</summary><ul>${missing.map((track) => `<li>${escape(track.filename || track.title)}</li>`).join("")}</ul>`
       : "";
@@ -308,6 +309,9 @@ export function createTeamController({
     let ignored = 0;
     try {
       const db = await teamDatabase();
+      const available = new Set(
+        (await readStore(db, "audio")).map((record) => record.id),
+      );
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
         if (
@@ -319,9 +323,6 @@ export function createTeamController({
         }
         progress(
           `Emparejando audio ${index + 1}/${files.length}: ${file.name}`,
-        );
-        const available = new Set(
-          (await readStore(db, "audio")).map((record) => record.id),
         );
         const pending = state.tracks.filter(
           (track) => !available.has(track.id),
@@ -350,6 +351,7 @@ export function createTeamController({
               blob: file,
             }),
           );
+          available.add(match.publishedId);
           added++;
         }
       }
@@ -403,6 +405,10 @@ export function createTeamController({
     }
   };
   return {
+    setGapSeconds: async (value) => {
+      config.gapSeconds = value;
+      await saveConfig();
+    },
     initialize,
     refreshStatus,
     config: () => config,
