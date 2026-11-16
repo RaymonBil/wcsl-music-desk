@@ -1,12 +1,503 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111016"><title>Music Desk · WCS Levante</title><link rel="stylesheet" href="style.css"></head><body>
-<aside><a class="brand" href="./"><span class="brandmark">W<span>↗</span></span><div>WCS LEVANTE<small>MUSIC DESK</small></div></a><div class="aside-label">TU ESPACIO MUSICAL</div><button class="nav active" data-view="all">♫ <span>Biblioteca</span><b id="total">0</b></button><button class="nav" data-view="favorites">♡ <span>Favoritos</span><b id="favtotal">0</b></button><button class="nav" data-view="review">◷ <span>Revisar BPM</span><b id="reviewtotal">0</b></button><div class="aside-label lists-label">TUS LISTAS <button id="newPlaylistSide" title="Crear lista" aria-label="Crear lista">＋</button></div><div id="playlistNav" class="playlist-nav"></div><div class="local-note"><i></i><strong>Audio en este ordenador</strong><p>Las canciones se guardan en este navegador. No se suben a la nube ni se sincronizan.</p><button id="helpBtn" class="text-button">Cómo funciona ↗</button></div><div class="version">VERSIÓN · 0.2</div></aside>
-<main><header><div class="eyebrow">TU CABINA DE CLASE</div><div class="heading"><div><h1 id="viewTitle">Tu biblioteca musical<span>.</span></h1><p>Menos buscar. Más bailar.</p></div><div class="import-actions"><button id="folderBtn" class="secondary">Añadir carpeta</button><button id="importBtn" class="primary">＋ Añadir canciones</button><label class="auto-label"><input id="autoAnalyze" type="checkbox" checked> Analizar BPM al importar</label></div></div></header>
-<section class="stats"><div><span>CANCIONES</span><strong id="statTracks">0</strong><small>en tu biblioteca</small></div><div><span>TIEMPO DE MÚSICA</span><strong id="statTime">0 min</strong><small>para tus sesiones</small></div><div><span>CON TEMPO</span><strong id="statBpm">0</strong><small>detectado o anotado</small></div><div class="stat-accent"><span>HECHO PARA ENSEÑAR</span><strong>Encuentra tu ritmo</strong><small>Estilo + BPM + tus propias etiquetas</small></div></section>
-<section id="playlistHeader" class="playlist-header" hidden><div><div class="eyebrow">LISTA MANUAL</div><h2 id="playlistTitle"></h2><p id="playlistDescription"></p><small id="playlistSummary"></small></div><div class="tools"><button id="playPlaylist" class="primary">▶ Reproducir lista</button><button id="editPlaylist" class="secondary">Editar lista</button><button id="addToCurrent" class="secondary">＋ Añadir temas</button></div></section><section class="library"><div class="section-top"><h2>Selección musical <span id="resultCount">0 temas</span></h2><div class="tools"><button id="newPlaylist" class="secondary">＋ Crear lista</button><button id="analyzeAll" class="secondary">⌁ Analizar pendientes</button><button id="backupBtn" class="secondary">Copia de seguridad</button><button id="restoreBtn" class="secondary" title="Recuperar una copia completa">Restaurar</button></div></div>
-<div class="filter-tabs" id="genreTabs" role="group" aria-label="Filtrar por estilo"></div><div class="filters"><div class="search-wrap"><span>⌕</span><input id="search" type="search" placeholder="Buscar canción, artista o etiqueta…" aria-label="Buscar canciones"></div><select id="tempoFilter" aria-label="Filtrar por velocidad"><option value="all">Todos los BPM</option><option value="slow">Menos de 90 BPM</option><option value="medium">90–110 BPM</option><option value="fast">Más de 110 BPM</option><option value="unknown">Sin BPM</option><option value="custom">Rango personalizado</option></select><div id="customRange" hidden><input id="minBpm" type="number" min="20" max="400" placeholder="Desde" aria-label="BPM mínimo"><span>–</span><input id="maxBpm" type="number" min="20" max="400" placeholder="Hasta" aria-label="BPM máximo"></div><select id="sort" aria-label="Ordenar canciones"><option value="recent">Últimas añadidas</option><option value="list">Orden de la lista</option><option value="title">Título A–Z</option><option value="bpm">BPM ascendente</option><option value="artist">Artista A–Z</option></select><button id="resetFilters" class="icon-button" title="Limpiar filtros" aria-label="Limpiar filtros">↺</button></div>
-<div class="operation"><div id="progress" class="progress" role="status" hidden></div><button id="cancelOperation" class="secondary" hidden>Detener tras el tema actual</button></div><div id="selectionBar" class="selection-bar"><label><input id="selectAll" type="checkbox"> Seleccionar visibles</label><span id="selectedCount">0 seleccionadas</span><button id="addSelected" class="secondary">＋ Añadir a lista</button><button id="removeSelected" class="secondary" hidden>Quitar de esta lista</button><button id="clearSelection" class="text-button">Limpiar selección</button></div><div id="dropzone"><div class="table-wrap"><table><thead><tr><th class="check-col"></th><th class="small-col"></th><th>TEMA / ARTISTA</th><th>ESTILO</th><th>BPM</th><th>DURACIÓN</th><th>ETIQUETAS</th><th></th></tr></thead><tbody id="tracks"></tbody></table></div><div id="empty" class="empty"><div class="empty-record">♫</div><h3>Tu próxima clase empieza aquí</h3><p>Arrastra tus canciones o añádelas desde el ordenador.<br>Después podrás ordenarlas por estilo, velocidad y listas para tus clases.</p><button id="emptyImport" class="primary">＋ Añadir mis primeras canciones</button><small>MP3, WAV, FLAC, M4A y OGG · Compatibilidad según navegador</small></div><div id="noResults" class="empty" hidden><h3>No hay temas con estos filtros</h3><p>Prueba otro estilo, velocidad o búsqueda.</p><button id="clearEmpty" class="secondary">Limpiar filtros</button></div></div><footer class="library-footer"><span id="storageInfo">Biblioteca local · sin suscripciones</span><span>Arrastra archivos aquí para añadir más temas ↙</span></footer></section><p class="phase-note">El análisis de BPM es orientativo. Estilo principal y secundarios editables · Listas manuales · Audio local.</p></main>
-<section class="player" aria-label="Reproductor"><div class="now"><div class="cover" id="playerCover">♫</div><div><strong id="nowTitle">Elige una canción</strong><small id="nowArtist">Tu música, lista para la clase</small></div><span id="nowBpm" class="bpm-badge"></span></div><div class="transport"><div class="playback-mode"><label><input id="continuous" type="checkbox" checked> Reproducción continua</label><span id="queueInfo"></span></div><div class="transport-buttons"><button id="prev" class="icon-button" title="Anterior" aria-label="Anterior">⏮</button><button id="playPause" class="play-main" aria-label="Reproducir">▶</button><button id="next" class="icon-button" title="Siguiente" aria-label="Siguiente">⏭</button><button id="repeat" class="icon-button" title="Repetir tema" aria-label="Repetir tema" aria-pressed="false">↻</button></div><div class="timeline"><span id="elapsed">0:00</span><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Posición de reproducción"><span id="duration">0:00</span></div></div><div class="volume"><label for="volume">Volumen</label><input id="volume" type="range" min="0" max="1" step="0.01" value="0.8"></div><audio id="audio" preload="metadata"></audio></section>
-<input id="files" type="file" multiple accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg" hidden><input id="folderFiles" type="file" webkitdirectory multiple hidden><input id="restoreFile" type="file" accept=".json,application/json" hidden>
-<dialog id="editor"><form id="editForm"><div class="dialog-head"><div><div class="eyebrow">AFINA TU BIBLIOTECA</div><h2>Editar canción</h2></div><button type="button" class="icon-button" id="closeEditor" aria-label="Cerrar">✕</button></div><label>Título<input id="editTitle" required maxlength="200"></label><label>Artista<input id="editArtist" maxlength="200"></label><div class="form-row"><label>Estilo principal<input id="editGenre" list="genres" placeholder="Ej.: Pop melódico lento" maxlength="60"></label><label>BPM<input id="editBpm" type="number" min="20" max="400" step="0.1" placeholder="Sin detectar"></label></div><datalist id="genres"><option>Blues</option><option>Pop</option><option>R&B</option><option>Soul</option><option>Funk</option><option>Jazz</option><option>Swing</option><option>Rock</option><option>Electrónica</option><option>Country</option></datalist><label>Estilos secundarios<input id="editSecondary" placeholder="Toque blues pop, R&amp;B clásico, lírica…" maxlength="300"></label><small>Separa los estilos secundarios con comas. Clasificación orientativa para WCS.</small><div id="tempoOrigin" class="tempo-origin"></div><div class="bpm-actions"><button type="button" id="half" class="secondary">BPM ÷ 2</button><button type="button" id="double" class="secondary">BPM × 2</button><button type="button" id="tap" class="secondary">Marcar pulso (tap)</button><small id="tapHint">Marca al menos 4 pulsos</small></div><label>Etiquetas para la clase<input id="editTags" placeholder="WCS, iniciación, pausas claras…" maxlength="300"></label><small>Separa las etiquetas con comas.</small><label>Notas<textarea id="editNotes" rows="3" maxlength="2000" placeholder="Qué trabajar con este tema…"></textarea></label><div class="dialog-foot"><button type="button" id="deleteTrack" class="danger">Eliminar de la biblioteca</button><button type="submit" class="primary">Guardar cambios</button></div></form></dialog>
-<dialog id="help"><div class="dialog-head"><h2>Tu música, organizada</h2><button id="closeHelp" class="icon-button" aria-label="Cerrar">✕</button></div><ol><li><b>Añade tus archivos.</b> Se copian al almacenamiento de este navegador; los originales no se modifican.</li><li><b>Analiza el tempo.</b> Pulsa «Analizar pendientes». El resultado es una estimación: escucha y corrige si hace falta.</li><li><b>Clasifica a tu manera.</b> En «Editar» asignas estilo, BPM y etiquetas para encontrar cada canción.</li><li><b>Prepara la clase.</b> Combina filtros y pulsa reproducir. Al terminar un tema, continúa con el siguiente de la selección visible.</li></ol><p>Usa siempre el mismo navegador y perfil. Borrar sus datos elimina esta biblioteca. La copia de seguridad incluye canciones y clasificación: puede ocupar bastante y tarda según el tamaño. Guárdala en una carpeta segura.</p><p>Los archivos protegidos de Spotify no se pueden importar. Las listas son manuales: crea una, selecciona canciones y pulsa «Añadir a lista». Puedes ordenar sus temas con las flechas. «Reproducir lista» usa el orden completo de esa lista, aunque tengas filtros activos. La cola de reproducción conserva el orden con el que la iniciaste. La consulta de datos mediante IA está pendiente de conexión.</p><button id="gotIt" class="primary">Entendido</button></dialog><dialog id="playlistDialog"><form id="playlistForm"><div class="dialog-head"><h2 id="playlistDialogTitle">Crear lista</h2><button type="button" id="closePlaylistDialog" class="icon-button" aria-label="Cerrar lista">✕</button></div><label>Nombre de la lista<input id="playlistName" required maxlength="100"></label><label>Descripción<textarea id="playlistDesc" maxlength="1000" rows="3"></textarea></label><div class="dialog-foot"><button id="deletePlaylist" type="button" class="danger" hidden>Eliminar lista</button><button type="submit" class="primary">Guardar lista</button></div></form></dialog>
-<dialog id="addDialog"><div class="dialog-head"><h2>Añadir canciones a una lista</h2><button id="closeAddDialog" class="icon-button" aria-label="Cerrar selección de lista">✕</button></div><p id="addSummary"></p><label class="picker-label" for="targetPlaylist">Lista de destino</label><select id="targetPlaylist"></select><p class="muted">Una canción puede pertenecer a varias listas. Los temas ya incluidos no se duplican.</p><div class="dialog-foot"><button id="createFromPicker" class="secondary">＋ Crear otra lista</button><button id="confirmAdd" class="primary">Añadir canciones</button></div></dialog><div id="toast" role="status" hidden></div><script type="module" src="app.js"></script></body></html>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#111016" />
+    <title>Music Desk · WCS Levante</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <aside>
+      <a class="brand" href="./"
+        ><span class="brandmark">W<span>↗</span></span>
+        <div>WCS LEVANTE<small>MUSIC DESK</small></div></a
+      >
+      <div class="aside-label">TU ESPACIO MUSICAL</div>
+      <button class="nav active" data-view="all">
+        ♫ <span>Biblioteca</span><b id="total">0</b></button
+      ><button class="nav" data-view="favorites">
+        ♡ <span>Favoritos</span><b id="favtotal">0</b></button
+      ><button class="nav" data-view="review">
+        ◷ <span>Revisar BPM</span><b id="reviewtotal">0</b>
+      </button>
+      <div class="aside-label lists-label">
+        TUS LISTAS
+        <button
+          id="newPlaylistSide"
+          title="Crear lista"
+          aria-label="Crear lista"
+        >
+          ＋
+        </button>
+      </div>
+      <div id="playlistNav" class="playlist-nav"></div>
+      <div class="local-note">
+        <i></i><strong>Audio en este ordenador</strong>
+        <p>
+          Las canciones se guardan en este navegador. No se suben a la nube ni
+          se sincronizan.
+        </p>
+        <button id="helpBtn" class="text-button">Cómo funciona ↗</button>
+      </div>
+      <div class="version">VERSIÓN · 0.2</div>
+    </aside>
+    <main>
+      <header>
+        <div class="eyebrow">TU CABINA DE CLASE</div>
+        <div class="heading">
+          <div>
+            <h1 id="viewTitle">Tu biblioteca musical<span>.</span></h1>
+            <p>Menos buscar. Más bailar.</p>
+          </div>
+          <div class="import-actions">
+            <button id="folderBtn" class="secondary">Añadir carpeta</button
+            ><button id="importBtn" class="primary">＋ Añadir canciones</button
+            ><label class="auto-label"
+              ><input id="autoAnalyze" type="checkbox" checked /> Analizar BPM
+              al importar</label
+            >
+          </div>
+        </div>
+      </header>
+      <section class="stats">
+        <div>
+          <span>CANCIONES</span><strong id="statTracks">0</strong
+          ><small>en tu biblioteca</small>
+        </div>
+        <div>
+          <span>TIEMPO DE MÚSICA</span><strong id="statTime">0 min</strong
+          ><small>para tus sesiones</small>
+        </div>
+        <div>
+          <span>CON TEMPO</span><strong id="statBpm">0</strong
+          ><small>detectado o anotado</small>
+        </div>
+        <div class="stat-accent">
+          <span>HECHO PARA ENSEÑAR</span><strong>Encuentra tu ritmo</strong
+          ><small>Estilo + BPM + tus propias etiquetas</small>
+        </div>
+      </section>
+      <section id="playlistHeader" class="playlist-header" hidden>
+        <div>
+          <div class="eyebrow">LISTA MANUAL</div>
+          <h2 id="playlistTitle"></h2>
+          <p id="playlistDescription"></p>
+          <small id="playlistSummary"></small>
+        </div>
+        <div class="tools">
+          <button id="playPlaylist" class="primary">▶ Reproducir lista</button
+          ><button id="editPlaylist" class="secondary">Editar lista</button
+          ><button id="addToCurrent" class="secondary">＋ Añadir temas</button>
+        </div>
+      </section>
+      <section class="library">
+        <div class="section-top">
+          <h2>Selección musical <span id="resultCount">0 temas</span></h2>
+          <div class="tools">
+            <button id="newPlaylist" class="secondary">＋ Crear lista</button
+            ><button id="analyzeAll" class="secondary">
+              ⌁ Analizar pendientes</button
+            ><button id="backupBtn" class="secondary">Copia de seguridad</button
+            ><button
+              id="restoreBtn"
+              class="secondary"
+              title="Recuperar una copia completa"
+            >
+              Restaurar
+            </button>
+          </div>
+        </div>
+        <div
+          class="filter-tabs"
+          id="genreTabs"
+          role="group"
+          aria-label="Filtrar por estilo"
+        ></div>
+        <div class="filters">
+          <div class="search-wrap">
+            <span>⌕</span
+            ><input
+              id="search"
+              type="search"
+              placeholder="Buscar canción, artista o etiqueta…"
+              aria-label="Buscar canciones"
+            />
+          </div>
+          <select id="tempoFilter" aria-label="Filtrar por velocidad">
+            <option value="all">Todos los BPM</option>
+            <option value="slow">Menos de 90 BPM</option>
+            <option value="medium">90–110 BPM</option>
+            <option value="fast">Más de 110 BPM</option>
+            <option value="unknown">Sin BPM</option>
+            <option value="custom">Rango personalizado</option>
+          </select>
+          <div id="customRange" hidden>
+            <input
+              id="minBpm"
+              type="number"
+              min="20"
+              max="400"
+              placeholder="Desde"
+              aria-label="BPM mínimo"
+            /><span>–</span
+            ><input
+              id="maxBpm"
+              type="number"
+              min="20"
+              max="400"
+              placeholder="Hasta"
+              aria-label="BPM máximo"
+            />
+          </div>
+          <select id="sort" aria-label="Ordenar canciones">
+            <option value="recent">Últimas añadidas</option>
+            <option value="list">Orden de la lista</option>
+            <option value="title">Título A–Z</option>
+            <option value="bpm">BPM ascendente</option>
+            <option value="artist">Artista A–Z</option></select
+          ><button
+            id="resetFilters"
+            class="icon-button"
+            title="Limpiar filtros"
+            aria-label="Limpiar filtros"
+          >
+            ↺
+          </button>
+        </div>
+        <div class="operation">
+          <div id="progress" class="progress" role="status" hidden></div>
+          <button id="cancelOperation" class="secondary" hidden>
+            Detener tras el tema actual
+          </button>
+        </div>
+        <div id="selectionBar" class="selection-bar">
+          <label
+            ><input id="selectAll" type="checkbox" /> Seleccionar
+            visibles</label
+          ><span id="selectedCount">0 seleccionadas</span
+          ><button id="addSelected" class="secondary">＋ Añadir a lista</button
+          ><button id="removeSelected" class="secondary" hidden>
+            Quitar de esta lista</button
+          ><button id="clearSelection" class="text-button">
+            Limpiar selección
+          </button>
+        </div>
+        <div id="dropzone">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="check-col"></th>
+                  <th class="small-col"></th>
+                  <th>TEMA / ARTISTA</th>
+                  <th>ESTILO</th>
+                  <th>BPM</th>
+                  <th>DURACIÓN</th>
+                  <th>ETIQUETAS</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tracks"></tbody>
+            </table>
+          </div>
+          <div id="empty" class="empty">
+            <div class="empty-record">♫</div>
+            <h3>Tu próxima clase empieza aquí</h3>
+            <p>
+              Arrastra tus canciones o añádelas desde el ordenador.<br />Después
+              podrás ordenarlas por estilo, velocidad y listas para tus clases.
+            </p>
+            <button id="emptyImport" class="primary">
+              ＋ Añadir mis primeras canciones</button
+            ><small
+              >MP3, WAV, FLAC, M4A y OGG · Compatibilidad según navegador</small
+            >
+          </div>
+          <div id="noResults" class="empty" hidden>
+            <h3>No hay temas con estos filtros</h3>
+            <p>Prueba otro estilo, velocidad o búsqueda.</p>
+            <button id="clearEmpty" class="secondary">Limpiar filtros</button>
+          </div>
+        </div>
+        <footer class="library-footer">
+          <span id="storageInfo">Biblioteca local · sin suscripciones</span
+          ><span>Arrastra archivos aquí para añadir más temas ↙</span>
+        </footer>
+      </section>
+      <p class="phase-note">
+        El análisis de BPM es orientativo. Estilo principal y secundarios
+        editables · Listas manuales · Audio local.
+      </p>
+    </main>
+    <section class="player" aria-label="Reproductor">
+      <div class="now">
+        <div class="cover" id="playerCover">♫</div>
+        <div>
+          <strong id="nowTitle">Elige una canción</strong
+          ><small id="nowArtist">Tu música, lista para la clase</small>
+        </div>
+        <span id="nowBpm" class="bpm-badge"></span>
+      </div>
+      <div class="transport">
+        <div class="playback-mode">
+          <label
+            ><input id="continuous" type="checkbox" checked /> Reproducción
+            continua</label
+          ><span id="queueInfo"></span>
+        </div>
+        <div class="transport-buttons">
+          <button
+            id="prev"
+            class="icon-button"
+            title="Anterior"
+            aria-label="Anterior"
+          >
+            ⏮</button
+          ><button id="playPause" class="play-main" aria-label="Reproducir">
+            ▶</button
+          ><button
+            id="next"
+            class="icon-button"
+            title="Siguiente"
+            aria-label="Siguiente"
+          >
+            ⏭</button
+          ><button
+            id="repeat"
+            class="icon-button"
+            title="Repetir tema"
+            aria-label="Repetir tema"
+            aria-pressed="false"
+          >
+            ↻
+          </button>
+        </div>
+        <div class="timeline">
+          <span id="elapsed">0:00</span
+          ><input
+            id="seek"
+            type="range"
+            min="0"
+            max="1000"
+            value="0"
+            aria-label="Posición de reproducción"
+          /><span id="duration">0:00</span>
+        </div>
+      </div>
+      <div class="volume">
+        <label for="volume">Volumen</label
+        ><input
+          id="volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.8"
+        />
+      </div>
+      <audio id="audio" preload="metadata"></audio>
+    </section>
+    <input
+      id="files"
+      type="file"
+      multiple
+      accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg"
+      hidden
+    /><input
+      id="folderFiles"
+      type="file"
+      webkitdirectory
+      multiple
+      hidden
+    /><input
+      id="restoreFile"
+      type="file"
+      accept=".json,application/json"
+      hidden
+    />
+    <dialog id="editor">
+      <form id="editForm">
+        <div class="dialog-head">
+          <div>
+            <div class="eyebrow">AFINA TU BIBLIOTECA</div>
+            <h2>Editar canción</h2>
+          </div>
+          <button
+            type="button"
+            class="icon-button"
+            id="closeEditor"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+        <label>Título<input id="editTitle" required maxlength="200" /></label
+        ><label>Artista<input id="editArtist" maxlength="200" /></label>
+        <div class="form-row">
+          <label
+            >Estilo principal<input
+              id="editGenre"
+              list="genres"
+              placeholder="Ej.: Pop melódico lento"
+              maxlength="60" /></label
+          ><label
+            >BPM<input
+              id="editBpm"
+              type="number"
+              min="20"
+              max="400"
+              step="0.1"
+              placeholder="Sin detectar"
+          /></label>
+        </div>
+        <datalist id="genres">
+          <option>Blues</option>
+          <option>Pop</option>
+          <option>R&B</option>
+          <option>Soul</option>
+          <option>Funk</option>
+          <option>Jazz</option>
+          <option>Swing</option>
+          <option>Rock</option>
+          <option>Electrónica</option>
+          <option>Country</option></datalist
+        ><label
+          >Estilos secundarios<input
+            id="editSecondary"
+            placeholder="Toque blues pop, R&amp;B clásico, lírica…"
+            maxlength="300" /></label
+        ><small
+          >Separa los estilos secundarios con comas. Clasificación orientativa
+          para WCS.</small
+        >
+        <div id="tempoOrigin" class="tempo-origin"></div>
+        <div class="bpm-actions">
+          <button type="button" id="half" class="secondary">BPM ÷ 2</button
+          ><button type="button" id="double" class="secondary">BPM × 2</button
+          ><button type="button" id="tap" class="secondary">
+            Marcar pulso (tap)</button
+          ><small id="tapHint">Marca al menos 4 pulsos</small>
+        </div>
+        <label
+          >Etiquetas para la clase<input
+            id="editTags"
+            placeholder="WCS, iniciación, pausas claras…"
+            maxlength="300" /></label
+        ><small>Separa las etiquetas con comas.</small
+        ><label
+          >Notas<textarea
+            id="editNotes"
+            rows="3"
+            maxlength="2000"
+            placeholder="Qué trabajar con este tema…"
+          ></textarea>
+        </label>
+        <div class="dialog-foot">
+          <button type="button" id="deleteTrack" class="danger">
+            Eliminar de la biblioteca</button
+          ><button type="submit" class="primary">Guardar cambios</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="help">
+      <div class="dialog-head">
+        <h2>Tu música, organizada</h2>
+        <button id="closeHelp" class="icon-button" aria-label="Cerrar">
+          ✕
+        </button>
+      </div>
+      <ol>
+        <li>
+          <b>Añade tus archivos.</b> Se copian al almacenamiento de este
+          navegador; los originales no se modifican.
+        </li>
+        <li>
+          <b>Analiza el tempo.</b> Pulsa «Analizar pendientes». El resultado es
+          una estimación: escucha y corrige si hace falta.
+        </li>
+        <li>
+          <b>Clasifica a tu manera.</b> En «Editar» asignas estilo, BPM y
+          etiquetas para encontrar cada canción.
+        </li>
+        <li>
+          <b>Prepara la clase.</b> Combina filtros y pulsa reproducir. Al
+          terminar un tema, continúa con el siguiente de la selección visible.
+        </li>
+      </ol>
+      <p>
+        Usa siempre el mismo navegador y perfil. Borrar sus datos elimina esta
+        biblioteca. La copia de seguridad incluye canciones y clasificación:
+        puede ocupar bastante y tarda según el tamaño. Guárdala en una carpeta
+        segura.
+      </p>
+      <p>
+        Los archivos protegidos de Spotify no se pueden importar. Las listas son
+        manuales: crea una, selecciona canciones y pulsa «Añadir a lista».
+        Puedes ordenar sus temas con las flechas. «Reproducir lista» usa el
+        orden completo de esa lista, aunque tengas filtros activos. La cola de
+        reproducción conserva el orden con el que la iniciaste. La consulta de
+        datos mediante IA está pendiente de conexión.
+      </p>
+      <button id="gotIt" class="primary">Entendido</button>
+    </dialog>
+    <dialog id="playlistDialog">
+      <form id="playlistForm">
+        <div class="dialog-head">
+          <h2 id="playlistDialogTitle">Crear lista</h2>
+          <button
+            type="button"
+            id="closePlaylistDialog"
+            class="icon-button"
+            aria-label="Cerrar lista"
+          >
+            ✕
+          </button>
+        </div>
+        <label
+          >Nombre de la lista<input
+            id="playlistName"
+            required
+            maxlength="100" /></label
+        ><label
+          >Descripción<textarea
+            id="playlistDesc"
+            maxlength="1000"
+            rows="3"
+          ></textarea>
+        </label>
+        <div class="dialog-foot">
+          <button id="deletePlaylist" type="button" class="danger" hidden>
+            Eliminar lista</button
+          ><button type="submit" class="primary">Guardar lista</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="addDialog">
+      <div class="dialog-head">
+        <h2>Añadir canciones a una lista</h2>
+        <button
+          id="closeAddDialog"
+          class="icon-button"
+          aria-label="Cerrar selección de lista"
+        >
+          ✕
+        </button>
+      </div>
+      <p id="addSummary"></p>
+      <label class="picker-label" for="targetPlaylist">Lista de destino</label
+      ><select id="targetPlaylist"></select>
+      <p class="muted">
+        Una canción puede pertenecer a varias listas. Los temas ya incluidos no
+        se duplican.
+      </p>
+      <div class="dialog-foot">
+        <button id="createFromPicker" class="secondary">
+          ＋ Crear otra lista</button
+        ><button id="confirmAdd" class="primary">Añadir canciones</button>
+      </div>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
