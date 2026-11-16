@@ -1,3 +1,5 @@
+import { createLiveController } from "./live-controls.js";
+import { prepareOfflineShell } from "./offline.js";
 import { createTeamController } from "./team-controls.js";
 import { estimatedBackupBytes } from "./share-core.js";
 import { describePlaylist, setupPointerReordering } from "./list-controls.js";
@@ -17,6 +19,7 @@ import {
   supportsBackupVersion,
 } from "./library-core.js";
 let team;
+let live;
 const $ = (id) => document.getElementById(id);
 const state = {
   tracks: [],
@@ -212,6 +215,7 @@ function filtered() {
 }
 function render() {
   const list = filtered();
+  live?.update();
   renderPlaylists();
   renderSelection(list);
   const genres = [
@@ -471,6 +475,7 @@ function renderSpeed() {
 function setSpeed(value) {
   state.speed = applyPlaybackSpeed(audio, value);
   renderSpeed();
+  live?.update();
 }
 async function persistSpeed(id, value) {
   if (state.mode !== "edit") return;
@@ -1022,6 +1027,7 @@ $("next").onclick = () => advance(1);
 $("repeat").onclick = () => {
   audio.loop = !audio.loop;
   $("repeat").setAttribute("aria-pressed", String(audio.loop));
+  live?.update();
 };
 audio.onplay = () => {
   $("playPause").textContent = "Ⅱ";
@@ -1326,6 +1332,8 @@ async function init() {
   setBusy(true);
   try {
     db = await team.initialize(await openLibraryDatabase());
+    live.setWakePreference(team.config().keepAwake);
+    prepareOfflineShell($("offlineStatus"));
     db.onversionchange = () => {
       db.close();
       setBusy(true);
@@ -1415,5 +1423,12 @@ team = createTeamController({
   audioDuration,
   setBusy,
   progress,
+});
+live = createLiveController({
+  state,
+  audio,
+  notify,
+  adjustSpeed: changeSpeed,
+  onWakeChanged: (value) => team.setKeepAwake(value),
 });
 init();

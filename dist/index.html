@@ -40,7 +40,9 @@
         </p>
         <button id="helpBtn" class="text-button">Cómo funciona ↗</button>
       </div>
-      <button id="settingsBtn" class="secondary">Ajustes</button
+      <button id="openDirect" class="primary">Modo Directo</button
+      ><small id="offlineStatus" role="status"></small
+      ><button id="settingsBtn" class="secondary">Ajustes</button
       ><small id="currentMode"></small>
       <div class="version">VERSIÓN · 0.3</div>
     </aside>
@@ -266,7 +268,11 @@
           <label
             ><input id="continuous" type="checkbox" checked /> Reproducción
             continua</label
-          ><span id="queueInfo"></span>
+          ><span id="queueInfo"></span
+          ><label
+            ><input id="wakeLockToggle" type="checkbox" /> Mantener pantalla
+            activa</label
+          ><small id="wakeLockStatus" role="status"></small>
         </div>
         <div class="transport-buttons">
           <button
@@ -637,6 +643,54 @@
         </button>
       </div>
     </dialog>
+    <section
+      id="directView"
+      class="direct-view"
+      hidden
+      aria-label="Modo Directo"
+    >
+      <div class="direct-top">
+        <strong>WCSL · DIRECTO</strong
+        ><button id="closeDirect" class="secondary">
+          Volver a la biblioteca
+        </button>
+      </div>
+      <h1 id="directTitle"></h1>
+      <p id="directArtist"></p>
+      <strong id="directBpm"></strong>
+      <p id="directNext"></p>
+      <div class="direct-buttons">
+        <button id="directPrev">⏮ Anterior</button
+        ><button id="directPlay">▶ Reproducir</button
+        ><button id="directNextBtn">Siguiente ⏭</button>
+      </div>
+      <label
+        >Velocidad<input
+          id="directSpeed"
+          type="range"
+          min="80"
+          max="120"
+          step="1"
+          value="100" /></label
+      ><button id="directReset" class="secondary">Velocidad 100 %</button
+      ><label
+        >Volumen<input
+          id="directVolume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value="0.8"
+      /></label>
+      <div class="direct-options">
+        <label
+          ><input id="directContinuous" type="checkbox" checked /> Reproducción
+          continua</label
+        ><button id="directRepeat" class="secondary" aria-pressed="false">
+          Repetir tema: no
+        </button>
+      </div>
+    </section>
     <script type="module" src="app.js"></script>
   </body>
 </html>
