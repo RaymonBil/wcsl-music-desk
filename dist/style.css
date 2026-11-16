@@ -1208,3 +1208,63 @@ fieldset {
   border-radius: 8px;
   margin: 15px 0;
 }
+.player-only {
+  display: none;
+}
+body[data-mode="player"] .player-only {
+  display: block;
+}
+body[data-mode="player"] .edit-only,
+body[data-mode="choose"] .edit-only {
+  display: none !important;
+}
+body[data-mode="player"] .row-select,
+body[data-mode="player"] .row-actions,
+body[data-mode="player"] .drag-handle,
+body[data-mode="player"] .row-move {
+  display: none !important;
+}
+.team-controls {
+  padding: 22px;
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 12px;
+}
+.team-controls p,
+#teamPreview p,
+#modeDialog p {
+  color: var(--muted);
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+#missingTracks {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 12px;
+}
+#teamPreviewMissing {
+  max-height: 230px;
+  overflow-y: auto;
+}
+.mode-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 24px 0;
+}
+#modeError {
+  color: #ffb0c4 !important;
+}
+#currentMode {
+  display: block;
+  color: var(--purple);
+  font-size: 10px;
+  margin: 12px 0;
+}
+.pending-track {
+  color: #e9b575;
+  font-size: 11px;
+  display: block;
+  margin-top: 5px;
+}

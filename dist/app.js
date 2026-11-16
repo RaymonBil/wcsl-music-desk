@@ -1,3 +1,5 @@
+import { createTeamController } from "./team-controls.js";
+import { estimatedBackupBytes } from "./share-core.js";
 import { describePlaylist, setupPointerReordering } from "./list-controls.js";
 import { openLibraryDatabase } from "./database.js";
 import { applyPlaybackSpeed } from "./playback.js";
@@ -14,6 +16,7 @@ import {
   speedDescription,
   supportsBackupVersion,
 } from "./library-core.js";
+let team;
 const $ = (id) => document.getElementById(id);
 const state = {
   tracks: [],
@@ -32,6 +35,7 @@ const state = {
   playlistEditing: null,
   pendingAdd: [],
   speed: 1,
+  mode: "choose",
 };
 const audio = $("audio");
 audio.volume = 0.8;
@@ -75,6 +79,8 @@ function setBusy(b, cancellable = false) {
     $(id).disabled = b;
 }
 function transaction(mode, fn) {
+  if (mode === "readwrite" && state.mode !== "edit")
+    throw new Error("El modo reproductor no permite editar la biblioteca.");
   return new Promise((resolve, reject) => {
     const tx = db.transaction("tracks", mode);
     let result;
@@ -90,6 +96,8 @@ function transaction(mode, fn) {
   });
 }
 function stores(names, mode, run) {
+  if (mode === "readwrite" && state.mode !== "edit")
+    throw new Error("El modo reproductor no permite editar la biblioteca.");
   return new Promise((resolve, reject) => {
     const tx = db.transaction(names, mode);
     let requests;
@@ -137,9 +145,21 @@ async function reload() {
   state.playlists = await stores(["playlists"], "readonly", (tx) =>
     tx.objectStore("playlists").getAll(),
   );
+  if (state.mode === "player") {
+    const audioKeys = new Set(
+      await stores(["audio"], "readonly", (tx) =>
+        tx.objectStore("audio").getAllKeys(),
+      ),
+    );
+    state.tracks = state.tracks.map((track) => ({
+      ...track,
+      ready: audioKeys.has(track.id),
+    }));
+  }
   const valid = new Set(state.tracks.map((t) => t.id));
   state.selected = new Set([...state.selected].filter((id) => valid.has(id)));
   render();
+  await team?.refreshStatus();
 }
 function currentPlaylist() {
   return state.playlists.find((l) => l.id === state.playlistId);
@@ -245,12 +265,12 @@ function render() {
   $("tracks").innerHTML = list
     .map(
       (t) =>
-        `<tr data-track="${t.id}" class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span></td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
+        `<tr data-track="${t.id}" class="${state.current === t.id ? "playing" : ""}"><td class="row-select edit-only"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" ${state.mode === "player" && !t.ready ? "disabled" : ""} data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span>${state.mode === "player" && !t.ready ? `<small class="pending-track">Pendiente: ${esc(t.filename)}</small>` : ""}</td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
           .slice(0, 3)
           .map((tag) => `<span class="tag">${esc(tag)}</span>`)
           .join(
             "",
-          )}${t.tags.length > 3 ? ` <span class="muted">+${t.tags.length - 3}</span>` : ""}</td><td><div class="row-actions">${state.playlistId ? `<button type="button" class="drag-handle" data-drag="${t.id}" aria-label="Arrastrar ${esc(t.title)} para reordenar" ${$("sort").value !== "list" ? "disabled" : ""}>⠿</button><div class="row-move"><button data-id="${t.id}" data-action="up" title="Subir en la lista" aria-label="Subir ${esc(t.title)}">↑</button><button data-id="${t.id}" data-action="down" title="Bajar en la lista" aria-label="Bajar ${esc(t.title)}">↓</button></div>` : ""}<button class="icon-button favorite ${t.favorite ? "on" : ""}" data-id="${t.id}" data-action="favorite" aria-label="${t.favorite ? "Quitar de" : "Añadir a"} favoritos" aria-pressed="${t.favorite}">${t.favorite ? "♥" : "♡"}</button><button class="secondary" data-id="${t.id}" data-action="add" aria-label="Añadir ${esc(t.title)} a lista">＋ Lista</button><button class="secondary" data-id="${t.id}" data-action="edit">Editar</button><button class="icon-button" data-id="${t.id}" data-action="analyze" title="Analizar BPM" aria-label="Analizar BPM">⌁</button></div></td></tr>`,
+          )}${t.tags.length > 3 ? ` <span class="muted">+${t.tags.length - 3}</span>` : ""}</td><td class="edit-only"><div class="row-actions">${state.playlistId ? `<button type="button" class="drag-handle" data-drag="${t.id}" aria-label="Arrastrar ${esc(t.title)} para reordenar" ${$("sort").value !== "list" ? "disabled" : ""}>⠿</button><div class="row-move"><button data-id="${t.id}" data-action="up" title="Subir en la lista" aria-label="Subir ${esc(t.title)}">↑</button><button data-id="${t.id}" data-action="down" title="Bajar en la lista" aria-label="Bajar ${esc(t.title)}">↓</button></div>` : ""}<button class="icon-button favorite ${t.favorite ? "on" : ""}" data-id="${t.id}" data-action="favorite" aria-label="${t.favorite ? "Quitar de" : "Añadir a"} favoritos" aria-pressed="${t.favorite}">${t.favorite ? "♥" : "♡"}</button><button class="secondary" data-id="${t.id}" data-action="add" aria-label="Añadir ${esc(t.title)} a lista">＋ Lista</button><button class="secondary" data-id="${t.id}" data-action="edit">Editar</button><button class="icon-button" data-id="${t.id}" data-action="analyze" title="Analizar BPM" aria-label="Analizar BPM">⌁</button></div></td></tr>`,
     )
     .join("");
   $("prev").disabled =
@@ -304,6 +324,7 @@ function audioDuration(blob) {
   });
 }
 async function importFiles(files) {
+  if (state.mode !== "edit") return;
   if (state.busy) return;
   setBusy(true, true);
   let count = 0,
@@ -416,7 +437,8 @@ async function play(id, queue = null) {
     state.urls.set("current", url);
     audio.src = url;
     state.current = id;
-    $("saveSpeed").checked = normalizeSpeed(t.speed) !== 1;
+    $("saveSpeed").checked =
+      state.mode === "edit" && normalizeSpeed(t.speed) !== 1;
     setSpeed(t.speed);
     updateQueueInfo();
     render();
@@ -451,6 +473,7 @@ function setSpeed(value) {
   renderSpeed();
 }
 async function persistSpeed(id, value) {
+  if (state.mode !== "edit") return;
   try {
     const speed = normalizeSpeed(value);
     await stores(["tracks"], "readwrite", (tx) => {
@@ -470,13 +493,14 @@ async function persistSpeed(id, value) {
 function changeSpeed(value) {
   if (!state.current) return;
   setSpeed(value);
-  if ($("saveSpeed").checked) persistSpeed(state.current, state.speed);
+  if (state.mode === "edit" && $("saveSpeed").checked)
+    persistSpeed(state.current, state.speed);
 }
 $("speed").oninput = () => {
   if (state.current) setSpeed(Number($("speed").value) / 100);
 };
 $("speed").onchange = () => {
-  if (state.current && $("saveSpeed").checked)
+  if (state.mode === "edit" && state.current && $("saveSpeed").checked)
     persistSpeed(state.current, state.speed);
 };
 $("speedMinus").onclick = () => changeSpeed(shiftSpeed(state.speed, -5));
@@ -497,7 +521,11 @@ function updateQueueInfo() {
 }
 function advance(direction, automatic = false) {
   if (automatic && !$("continuous").checked) return;
-  const ids = state.queue.length ? state.queue : filtered().map((t) => t.id);
+  const ids = state.queue.length
+    ? state.queue
+    : filtered()
+        .filter((track) => state.mode !== "player" || track.ready)
+        .map((t) => t.id);
   if (!ids.length) return;
   const index = ids.indexOf(state.current),
     next = index < 0 ? 0 : index + direction;
@@ -577,6 +605,7 @@ async function analyzeOne(id) {
   await save(correctReportedDoubleTempo(fresh));
 }
 async function analyze(ids) {
+  if (state.mode !== "edit") return;
   if (state.busy) return;
   setBusy(true, true);
   state.cancel = false;
@@ -604,6 +633,7 @@ async function analyze(ids) {
   }
 }
 function openEditor(id) {
+  if (state.mode !== "edit") return;
   const t = state.tracks.find((t) => t.id === id);
   if (!t) return;
   state.editing = id;
@@ -747,6 +777,22 @@ function blobToData(blob) {
   });
 }
 async function backup() {
+  if (state.mode !== "edit") return;
+  if (state.busy) return;
+  const audioRecords = await stores(["audio"], "readonly", (tx) =>
+    tx.objectStore("audio").getAll(),
+  );
+  const estimated = estimatedBackupBytes(
+    audioRecords,
+    state.tracks,
+    state.playlists,
+  );
+  if (
+    !confirm(
+      `Copia completa con audio: tamaño estimado ${(estimated / 1024 / 1024).toFixed(1)} MB. Puede requerir bastante memoria. ¿Generarla?`,
+    )
+  )
+    return;
   if (state.busy) return;
   setBusy(true);
   try {
@@ -785,6 +831,7 @@ async function backup() {
   }
 }
 async function restore(file) {
+  if (state.mode !== "edit") return;
   if (!file || state.busy) return;
   setBusy(true);
   let count = 0,
@@ -910,7 +957,9 @@ $("tracks").onclick = async (e) => {
     if (b.dataset.action === "play")
       play(
         id,
-        filtered().map((t) => t.id),
+        filtered()
+          .filter((track) => state.mode !== "player" || track.ready)
+          .map((t) => t.id),
       );
     if (b.dataset.action === "add") openAdd([id]);
     if (b.dataset.action === "up" || b.dataset.action === "down") {
@@ -964,7 +1013,9 @@ $("playPause").onclick = () =>
     : filtered()[0] &&
       play(
         filtered()[0].id,
-        filtered().map((t) => t.id),
+        filtered()
+          .filter((track) => state.mode !== "player" || track.ready)
+          .map((t) => t.id),
       );
 $("prev").onclick = () => advance(-1);
 $("next").onclick = () => advance(1);
@@ -1068,6 +1119,7 @@ function renderSelection(visible) {
     visible.some((t) => state.selected.has(t.id)) && !$("selectAll").checked;
 }
 function openPlaylist(id = null) {
+  if (state.mode !== "edit") return;
   state.playlistEditing = id;
   const l = state.playlists.find((l) => l.id === id);
   $("playlistDialogTitle").textContent = l ? "Editar lista" : "Crear lista";
@@ -1077,6 +1129,7 @@ function openPlaylist(id = null) {
   $("playlistDialog").showModal();
 }
 function openAdd(ids) {
+  if (state.mode !== "edit") return;
   state.pendingAdd = [...ids];
   if (!ids.length) {
     notify("Selecciona primero una o varias canciones.");
@@ -1232,7 +1285,9 @@ $("tracks").onchange = (e) => {
   renderSelection(filtered());
 };
 $("playPlaylist").onclick = () => {
-  const list = playlistTracks(currentPlaylist());
+  const list = playlistTracks(currentPlaylist()).filter(
+    (track) => state.mode !== "player" || track.ready,
+  );
   if (list.length) {
     $("continuous").checked = true;
     play(
@@ -1270,7 +1325,7 @@ setupPointerReordering({
 async function init() {
   setBusy(true);
   try {
-    db = await openLibraryDatabase();
+    db = await team.initialize(await openLibraryDatabase());
     db.onversionchange = () => {
       db.close();
       setBusy(true);
@@ -1278,7 +1333,7 @@ async function init() {
     };
     await reload();
     let adjusted = 0;
-    for (const t of state.tracks) {
+    for (const t of state.mode === "edit" ? state.tracks : []) {
       const corrected = correctReportedDoubleTempo(t);
       if (corrected !== t) {
         await save(corrected);
@@ -1299,4 +1354,66 @@ async function init() {
     notify(e.message);
   }
 }
+async function activateDatabase(active) {
+  db = active;
+  playToken++;
+  audio.pause();
+  audio.removeAttribute("src");
+  audio.load();
+  const url = state.urls.get("current");
+  if (url) URL.revokeObjectURL(url);
+  state.urls.clear();
+  state.current = null;
+  state.playlistId = null;
+  state.selected.clear();
+  state.queue = [];
+  state.view = "all";
+  state.speed = 1;
+  $("saveSpeed").checked = false;
+  $("nowTitle").textContent = "Elige una canción";
+  $("nowArtist").textContent = "Tu música, lista para la clase";
+  $("queueInfo").textContent = "";
+  $("search").value = "";
+  $("tempoFilter").value = "all";
+  state.genre = "all";
+  await reload();
+}
+for (const id of [
+  "importBtn",
+  "folderBtn",
+  "emptyImport",
+  "autoAnalyze",
+  "analyzeAll",
+  "backupBtn",
+  "restoreBtn",
+  "newPlaylist",
+  "newPlaylistSide",
+  "editPlaylist",
+  "duplicatePlaylist",
+  "addToCurrent",
+  "selectionBar",
+  "publishBtn",
+]) {
+  $(id).classList.add("edit-only");
+}
+$("autoAnalyze").closest("label").classList.add("edit-only");
+$("saveSpeed").closest("label").classList.add("edit-only");
+$("tracks")
+  .closest("table")
+  .querySelectorAll("thead th.check-col, thead th:last-child")
+  .forEach((node) => node.classList.add("edit-only"));
+document
+  .querySelectorAll('[data-view="favorites"], [data-view="review"]')
+  .forEach((node) => node.classList.add("edit-only"));
+team = createTeamController({
+  state,
+  audio,
+  notify,
+  reload,
+  activate: activateDatabase,
+  hash,
+  audioDuration,
+  setBusy,
+  progress,
+});
 init();

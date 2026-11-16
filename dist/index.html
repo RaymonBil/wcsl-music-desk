@@ -7,7 +7,7 @@
     <title>Music Desk · WCS Levante</title>
     <link rel="stylesheet" href="style.css" />
   </head>
-  <body>
+  <body data-mode="choose">
     <aside>
       <a class="brand" href="./"
         ><span class="brandmark">W<span>↗</span></span>
@@ -40,7 +40,9 @@
         </p>
         <button id="helpBtn" class="text-button">Cómo funciona ↗</button>
       </div>
-      <div class="version">VERSIÓN · 0.2</div>
+      <button id="settingsBtn" class="secondary">Ajustes</button
+      ><small id="currentMode"></small>
+      <div class="version">VERSIÓN · 0.3</div>
     </aside>
     <main>
       <header>
@@ -60,6 +62,21 @@
           </div>
         </div>
       </header>
+      <section class="team-controls player-only">
+        <h2>Listas del equipo</h2>
+        <p id="teamVersion"></p>
+        <div class="tools">
+          <button id="teamLoadBtn" class="primary">
+            Cargar paquete del equipo</button
+          ><button id="teamUpdateBtn" class="secondary">Actualizar</button
+          ><button id="teamAudioBtn" class="secondary">
+            Añadir MP3 pendientes</button
+          ><button id="teamFolderBtn" class="secondary">
+            Elegir carpeta de MP3</button
+          ><button id="freeSpaceBtn" class="secondary">Liberar espacio</button>
+        </div>
+        <details id="missingTracks"></details>
+      </section>
       <section class="stats">
         <div>
           <span>CANCIONES</span><strong id="statTracks">0</strong
@@ -97,10 +114,13 @@
         <div class="section-top">
           <h2>Selección musical <span id="resultCount">0 temas</span></h2>
           <div class="tools">
-            <button id="newPlaylist" class="secondary">＋ Crear lista</button
+            <button id="publishBtn" class="secondary edit-only">
+              Publicar para el equipo</button
+            ><button id="newPlaylist" class="secondary">＋ Crear lista</button
             ><button id="analyzeAll" class="secondary">
               ⌁ Analizar pendientes</button
-            ><button id="backupBtn" class="secondary">Copia de seguridad</button
+            ><button id="backupBtn" class="secondary">
+              Copia completa (con audio)</button
             ><button
               id="restoreBtn"
               class="secondary"
@@ -551,6 +571,72 @@
       </div>
     </dialog>
     <div id="toast" role="status" hidden></div>
+
+    <input
+      id="teamJsonFile"
+      type="file"
+      accept=".json,application/json"
+      hidden
+    />
+    <input
+      id="teamAudioFiles"
+      type="file"
+      multiple
+      accept="audio/*,.mp3,.wav,.flac,.m4a,.ogg"
+      hidden
+    />
+    <input id="teamFolderFiles" type="file" webkitdirectory multiple hidden />
+    <dialog id="modeDialog">
+      <form id="modeForm">
+        <h2 id="modeTitle">¿Cómo vas a usar la app?</h2>
+        <div class="mode-choices">
+          <button type="button" id="chooseManager" class="primary">
+            Gestionar la música</button
+          ><button type="button" id="choosePlayer" class="secondary">
+            Solo reproducir las listas del equipo
+          </button>
+        </div>
+        <div id="modePinFields" hidden>
+          <p id="pinExplanation"></p>
+          <label
+            >PIN de 4 dígitos<input
+              id="modePin"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              autocomplete="off" /></label
+          ><label id="modePinConfirmLabel"
+            >Repetir PIN<input
+              id="modePinConfirm"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]{4}"
+              maxlength="4"
+              autocomplete="off"
+          /></label>
+        </div>
+        <p id="modeError" role="alert"></p>
+        <div class="dialog-foot">
+          <button type="button" id="modeCancel" class="secondary" hidden>
+            Cancelar</button
+          ><button type="submit" id="modePinSubmit" class="primary" hidden>
+            Continuar
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="teamPreview">
+      <h2>Revisar paquete antes de cargar</h2>
+      <p id="teamPreviewText"></p>
+      <ul id="teamPreviewMissing"></ul>
+      <div class="dialog-foot">
+        <button id="cancelTeamPreview" class="secondary">Cancelar</button
+        ><button id="confirmTeamPreview" class="primary">
+          Cargar y reemplazar
+        </button>
+      </div>
+    </dialog>
     <script type="module" src="app.js"></script>
   </body>
 </html>

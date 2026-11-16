@@ -1,5 +1,8 @@
 import { DEFAULT_PLAYLISTS, migrateTrackV3 } from "./library-core.js";
-export function openLibraryDatabase(name = "wcsl-music-desk") {
+export function openLibraryDatabase(
+  name = "wcsl-music-desk",
+  { seedDefaults = true } = {},
+) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(name, 3);
     request.onupgradeneeded = () => {
@@ -11,9 +14,13 @@ export function openLibraryDatabase(name = "wcsl-music-desk") {
         db.createObjectStore("audio", { keyPath: "id" });
       if (!db.objectStoreNames.contains("playlists")) {
         const lists = db.createObjectStore("playlists", { keyPath: "id" });
-        for (const list of DEFAULT_PLAYLISTS) lists.put(list);
+        if (seedDefaults) {
+          for (const list of DEFAULT_PLAYLISTS) lists.put(list);
+        }
       }
       // Una única transacción: si falla cualquier escritura, se revierte la migración.
+      if (!db.objectStoreNames.contains("settings"))
+        db.createObjectStore("settings", { keyPath: "key" });
       const cursor = tx.objectStore("tracks").openCursor();
       cursor.onsuccess = () => {
         const current = cursor.result;
