@@ -56,7 +56,10 @@ export async function verifyAccessToken(
 ) {
   const domain = normalizeTeamDomain(teamDomain);
   if (!token || typeof token !== "string") throw new Error("Falta el token de acceso");
-  if (!domain || !audience) throw new Error("Access no está configurado");
+  const allowed = (Array.isArray(audience) ? audience : String(audience || "").split(","))
+    .map((value) => String(value).trim())
+    .filter(Boolean);
+  if (!domain || !allowed.length) throw new Error("Access no está configurado");
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Token mal formado");
   const [headerPart, payloadPart, signaturePart] = parts;
@@ -71,7 +74,8 @@ export async function verifyAccessToken(
 
   const now = nowSeconds ?? Math.floor(Date.now() / 1000);
   const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-  if (!audiences.includes(audience)) throw new Error("Token de otra aplicación");
+  if (!audiences.some((value) => allowed.includes(value)))
+    throw new Error("Token de otra aplicación");
   if (payload.iss !== domain) throw new Error("Emisor no válido");
   if (typeof payload.exp !== "number" || payload.exp < now - 30)
     throw new Error("Sesión caducada");

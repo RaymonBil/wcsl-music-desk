@@ -1455,3 +1455,16 @@ body[data-mode="player"] .row-move {
     flex-wrap: wrap;
   }
 }
+
+/* Nube: se oculta lo que solo tiene sentido sin servidor (paquetes del equipo, PIN). */
+.cloud-only {
+  display: none;
+}
+body[data-cloud] .cloud-only {
+  display: revert;
+}
+body[data-cloud] .local-only,
+body[data-cloud] .team-controls,
+body[data-cloud] #publishBtn {
+  display: none !important;
+}

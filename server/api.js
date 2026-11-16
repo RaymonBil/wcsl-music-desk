@@ -82,8 +82,9 @@ async function serveAudio(request, env, id) {
   object.writeHttpMetadata(headers);
   headers.set("ETag", object.httpEtag);
   headers.set("Accept-Ranges", "bytes");
-  // El audio se identifica por su hash: nunca cambia, puede guardarse en caché del navegador.
-  headers.set("Cache-Control", "private, max-age=31536000, immutable");
+  // La música no se guarda en el dispositivo: se reproduce por streaming y la precarga
+  // de la siguiente canción vive solo en memoria mientras la app está abierta.
+  headers.set("Cache-Control", "private, no-store");
   if (!("body" in object) || !object.body) return new Response(null, { status: 304, headers });
   const partial = request.headers.has("Range") ? contentRange(object.range, object.size) : null;
   if (partial) {
@@ -157,6 +158,8 @@ export async function handleApi(request, env, options = {}) {
       return fail(400, error.message);
     }
     if (statements.length) await env.DB.batch(statements);
+    // El audio de las canciones borradas también se elimina de R2.
+    for (const id of changes.deleteTracks || []) await env.AUDIO.delete(`audio/${id}`);
     return json({ ok: true, revision: await getRevision(env.DB) });
   }
 

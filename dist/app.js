@@ -11,6 +11,7 @@ import { createTeamController } from "./team-controls.js";
 import { estimatedBackupBytes } from "./share-core.js";
 import { describePlaylist, setupPointerReordering } from "./list-controls.js";
 import { openLibraryDatabase } from "./database.js";
+import { fetchSession, createCloudSync } from "./cloud-sync.js";
 import { applyPlaybackSpeed } from "./playback.js";
 import {
   DEFAULT_PLAYLISTS,
@@ -28,6 +29,7 @@ import {
 } from "./library-core.js";
 let team;
 let live;
+let cloud = null;
 const $ = (id) => document.getElementById(id);
 const state = {
   tracks: [],
@@ -166,13 +168,14 @@ async function reload() {
     );
     state.tracks = state.tracks.map((track) => ({
       ...track,
-      ready: audioKeys.has(track.id),
+      ready: audioKeys.has(track.id) || Boolean(cloud?.hasAudio(track.id)),
     }));
   }
   const valid = new Set(state.tracks.map((t) => t.id));
   state.selected = new Set([...state.selected].filter((id) => valid.has(id)));
   render();
   await team?.refreshStatus();
+  if (cloud && state.mode === "edit") cloud.schedule();
 }
 function currentPlaylist() {
   return state.playlists.find((l) => l.id === state.playlistId);
@@ -448,12 +451,18 @@ async function play(id, queue = null, position = null) {
     }
     const t = await get(id);
     if (token !== playToken) return;
-    if (!t?.blob) throw new Error("Falta el archivo de audio.");
+    const remote = !t?.blob && cloud ? cloud.sourceFor(id) : null;
+    if (!t?.blob && !remote) throw new Error("Falta el archivo de audio.");
     audio.pause();
-    if (state.urls.has("current"))
+    if (state.urls.has("current")) {
       URL.revokeObjectURL(state.urls.get("current"));
-    const url = URL.createObjectURL(t.blob);
-    state.urls.set("current", url);
+      state.urls.delete("current");
+    }
+    let url = remote;
+    if (t?.blob) {
+      url = URL.createObjectURL(t.blob);
+      state.urls.set("current", url);
+    }
     audio.src = url;
     state.current = id;
     $("saveSpeed").checked =
@@ -462,9 +471,16 @@ async function play(id, queue = null, position = null) {
     updateQueueInfo();
     render();
     await audio.play();
+    prefetchNext();
   } catch (e) {
     notify(`No se puede reproducir: ${e.message}`);
   }
+}
+// Con wifi flojo: se descarga la siguiente canción mientras suena la actual.
+function prefetchNext() {
+  if (!cloud || !state.queue.length) return;
+  const next = nextQueueIndex(state.queue, state.queueIndex, 1, true);
+  if (next >= 0) cloud.prefetch(state.queue[next]);
 }
 function renderSpeed() {
   const track = state.tracks.find((t) => t.id === state.current),
@@ -678,7 +694,7 @@ async function analyzeOne(id) {
   if (!t) return;
   let buffer;
   try {
-    buffer = await decode(t.blob);
+    buffer = await decode(t.blob || (await cloud?.fetchBlob(id)));
   } catch {
     t.bpmSource = "failed";
     await save(t);
@@ -1466,7 +1482,35 @@ setupPointerReordering({
 async function init() {
   setBusy(true);
   try {
-    db = await team.initialize(await openLibraryDatabase());
+    const session = await fetchSession();
+    let role = session.status === "ok" ? session.role : null;
+    try {
+      if (role) localStorage.setItem("wcsl-cloud-role", role);
+      else if (session.status === "offline")
+        role = localStorage.getItem("wcsl-cloud-role");
+    } catch {}
+    if (session.status === "forbidden") {
+      progress(
+        "Tu cuenta no tiene acceso a esta biblioteca. Pide a Ray que te dé de alta.",
+      );
+      return;
+    }
+    if (role === "admin" || role === "viewer") {
+      const cloudDb =
+        role === "admin"
+          ? await openLibraryDatabase()
+          : await openLibraryDatabase("wcsl-music-desk-cloud", {
+              seedDefaults: false,
+            });
+      db = await team.initializeCloud(cloudDb, role, session.email);
+      cloud = createCloudSync({
+        getDb: () => db,
+        role,
+        notify,
+        onStatus: (text) => ($("cloudStatus").textContent = text),
+        onLibraryChanged: reload,
+      });
+    } else db = await team.initialize(await openLibraryDatabase());
     live.setWakePreference(team.config().keepAwake);
     state.gapSeconds = normalizeGapSeconds(team.config().gapSeconds);
     $("gapSeconds").value = $("directGapSeconds").value = state.gapSeconds;
@@ -1477,6 +1521,10 @@ async function init() {
       progress("Hay una versión nueva. Recarga esta pestaña.");
     };
     await reload();
+    if (cloud) {
+      await cloud.start();
+      await reload();
+    }
     let adjusted = 0;
     for (const t of state.mode === "edit" ? state.tracks : []) {
       const corrected = correctReportedDoubleTempo(t);

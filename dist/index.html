@@ -33,10 +33,14 @@
       </div>
       <div id="playlistNav" class="playlist-nav"></div>
       <div class="local-note">
-        <i></i><strong>Audio en este ordenador</strong>
-        <p>
+        <i></i><strong class="local-only">Audio en este ordenador</strong
+        ><strong class="cloud-only">Música en la nube</strong>
+        <p class="local-only">
           Las canciones se guardan en este navegador. No se suben a la nube ni
           se sincronizan.
+        </p>
+        <p class="cloud-only" id="cloudStatus" role="status" aria-live="polite">
+          Conectando…
         </p>
         <button id="helpBtn" class="text-button">Cómo funciona ↗</button>
       </div>
@@ -44,7 +48,7 @@
       ><small id="offlineStatus" role="status"></small
       ><button id="settingsBtn" class="secondary">Ajustes</button
       ><small id="currentMode"></small>
-      <div class="version">VERSIÓN · 0.3</div>
+      <div class="version">VERSIÓN · 0.4</div>
     </aside>
     <main>
       <header>

@@ -5,9 +5,10 @@ pages_build_output_dir = "dist"
 compatibility_date = "2026-11-16"
 
 [vars]
-# Dominio del equipo de Cloudflare Access y etiqueta AUD de la aplicación protegida.
+# Dominio del equipo de Cloudflare Access y etiquetas AUD (separadas por comas) de las
+# aplicaciones de Access que protegen el sitio. La AUD no es secreta.
 ACCESS_TEAM_DOMAIN = "https://cold-salad-734d.cloudflareaccess.com"
-ACCESS_AUD = ""
+ACCESS_AUD = "7daa9a94c6df01deda8e708c43dc7fbb24c21c96e4d4f70af0b5dec523bee5d4"
 
 [[d1_databases]]
 binding = "DB"

@@ -142,6 +142,7 @@ test("reproducción en streaming con rangos (para avanzar dentro del tema)", asy
   assert.equal(full.status, 200);
   assert.equal(full.headers.get("Content-Type"), "audio/mpeg");
   assert.equal(full.headers.get("Accept-Ranges"), "bytes");
+  assert.equal(full.headers.get("Cache-Control"), "private, no-store", "no se guarda en el móvil");
   assert.deepEqual(new Uint8Array(await full.arrayBuffer()), audioBytes);
   const part = await call(`audio/${audioId}`, { email: VIEWER, headers: { Range: "bytes=10-19" } });
   assert.equal(part.status, 206);
@@ -186,7 +187,15 @@ test("borrar canciones, listas y reordenar listas", async () => {
   });
   const lib = await (await call("library")).json();
   assert.deepEqual(lib.tracks.map((t) => t.track.id), [audioId]);
+  assert.equal(env.AUDIO.objects.has(`audio/${id2}`), false);
   assert.deepEqual(lib.playlists.map((l) => l.id), ["c", "a"]);
+});
+
+test("se aceptan varias aplicaciones de Access (producción y vistas previas)", async () => {
+  env.ACCESS_AUD = `otra-aud, ${AUD}`;
+  assert.equal((await call("me")).status, 200);
+  env.ACCESS_AUD = "otra-aud";
+  assert.equal((await call("me")).status, 401);
 });
 
 test("verifyAccessToken exige emisor del equipo", async () => {

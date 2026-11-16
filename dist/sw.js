@@ -1,5 +1,5 @@
 // Solo el shell de la app. Los audios y paquetes viven en IndexedDB, no en la red.
-const CACHE = "wcsl-shell-0.3-r3";
+const CACHE = "wcsl-shell-0.4-r1";
 const FILES = [
   "./",
   "./index.html",
@@ -17,6 +17,8 @@ const FILES = [
   "./offline.js",
   "./gap-controls.js",
   "./queue-core.js",
+  "./cloud-core.js",
+  "./cloud-sync.js",
   "./tempo-core.js",
   "./tempo-worker.js",
 ];

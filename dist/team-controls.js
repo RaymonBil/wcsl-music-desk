@@ -55,6 +55,7 @@ export function createTeamController({
   let resolveChoice;
   let modeDialogPurpose = "initial";
   let operation = false;
+  let cloudSession = null;
 
   async function saveConfig() {
     await putSetting(preferencesDb, "app", config);
@@ -173,7 +174,28 @@ export function createTeamController({
     });
   }
 
+  // Con la nube, el rol lo decide el servidor: sin PIN, sin paquetes y sin cambiar de modo.
+  async function initializeCloud(db, role, email) {
+    ownerDb = db;
+    cloudSession = { role, email };
+    preferencesDb = await openPreferencesDatabase();
+    config = (await getSetting(preferencesDb, "app")) || {};
+    state.mode = role === "admin" ? "edit" : "player";
+    document.body.dataset.mode = state.mode;
+    document.body.dataset.cloud = role;
+    $("settingsBtn").onclick = () =>
+      notify(
+        `${email || "Sesión iniciada"} · ${role === "admin" ? "gestión de la música" : "reproducción de las listas del equipo"}`,
+      );
+    return db;
+  }
+
   async function refreshStatus() {
+    if (cloudSession) {
+      $("currentMode").textContent =
+        cloudSession.role === "admin" ? "Gestión de música" : "Reproductor del equipo";
+      return;
+    }
     if (!ownerDb) return;
     $("currentMode").textContent =
       state.mode === "player" ? "Reproductor del equipo" : "Gestión de música";
@@ -410,6 +432,7 @@ export function createTeamController({
       await saveConfig();
     },
     initialize,
+    initializeCloud,
     refreshStatus,
     config: () => config,
     setKeepAwake: async (value) => {
