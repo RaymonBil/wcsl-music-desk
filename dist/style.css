@@ -1171,3 +1171,40 @@ aside {
     bottom: 350px;
   }
 }
+.drag-handle {
+  touch-action: none;
+  cursor: grab;
+  background: #30253f;
+  color: var(--purple);
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 20px;
+}
+.dragging-row {
+  opacity: 0.6;
+}
+.drop-target {
+  outline: 2px solid var(--purple);
+  outline-offset: -2px;
+}
+.playlist-nav button small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+}
+#editMembership label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+#editMembership input {
+  width: auto;
+  accent-color: var(--purple);
+}
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin: 15px 0;
+}

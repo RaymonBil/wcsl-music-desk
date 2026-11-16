@@ -1,3 +1,4 @@
+import { describePlaylist, setupPointerReordering } from "./list-controls.js";
 import { openLibraryDatabase } from "./database.js";
 import { applyPlaybackSpeed } from "./playback.js";
 import {
@@ -244,12 +245,12 @@ function render() {
   $("tracks").innerHTML = list
     .map(
       (t) =>
-        `<tr class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span></td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
+        `<tr data-track="${t.id}" class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span></td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
           .slice(0, 3)
           .map((tag) => `<span class="tag">${esc(tag)}</span>`)
           .join(
             "",
-          )}${t.tags.length > 3 ? ` <span class="muted">+${t.tags.length - 3}</span>` : ""}</td><td><div class="row-actions">${state.playlistId ? `<div class="row-move"><button data-id="${t.id}" data-action="up" title="Subir en la lista" aria-label="Subir ${esc(t.title)}">↑</button><button data-id="${t.id}" data-action="down" title="Bajar en la lista" aria-label="Bajar ${esc(t.title)}">↓</button></div>` : ""}<button class="icon-button favorite ${t.favorite ? "on" : ""}" data-id="${t.id}" data-action="favorite" aria-label="${t.favorite ? "Quitar de" : "Añadir a"} favoritos" aria-pressed="${t.favorite}">${t.favorite ? "♥" : "♡"}</button><button class="secondary" data-id="${t.id}" data-action="add" aria-label="Añadir ${esc(t.title)} a lista">＋ Lista</button><button class="secondary" data-id="${t.id}" data-action="edit">Editar</button><button class="icon-button" data-id="${t.id}" data-action="analyze" title="Analizar BPM" aria-label="Analizar BPM">⌁</button></div></td></tr>`,
+          )}${t.tags.length > 3 ? ` <span class="muted">+${t.tags.length - 3}</span>` : ""}</td><td><div class="row-actions">${state.playlistId ? `<button type="button" class="drag-handle" data-drag="${t.id}" aria-label="Arrastrar ${esc(t.title)} para reordenar" ${$("sort").value !== "list" ? "disabled" : ""}>⠿</button><div class="row-move"><button data-id="${t.id}" data-action="up" title="Subir en la lista" aria-label="Subir ${esc(t.title)}">↑</button><button data-id="${t.id}" data-action="down" title="Bajar en la lista" aria-label="Bajar ${esc(t.title)}">↓</button></div>` : ""}<button class="icon-button favorite ${t.favorite ? "on" : ""}" data-id="${t.id}" data-action="favorite" aria-label="${t.favorite ? "Quitar de" : "Añadir a"} favoritos" aria-pressed="${t.favorite}">${t.favorite ? "♥" : "♡"}</button><button class="secondary" data-id="${t.id}" data-action="add" aria-label="Añadir ${esc(t.title)} a lista">＋ Lista</button><button class="secondary" data-id="${t.id}" data-action="edit">Editar</button><button class="icon-button" data-id="${t.id}" data-action="analyze" title="Analizar BPM" aria-label="Analizar BPM">⌁</button></div></td></tr>`,
     )
     .join("");
   $("prev").disabled =
@@ -618,6 +619,12 @@ function openEditor(id) {
   $("editBpm").value = t.bpm || "";
   $("editTags").value = t.tags.join(", ");
   $("editNotes").value = t.notes;
+  $("editMembership").innerHTML = state.playlists
+    .map(
+      (list) =>
+        `<label><input type="checkbox" data-membership="${esc(list.id)}" ${list.trackIds.includes(id) ? "checked" : ""}> ${esc(list.name)}</label>`,
+    )
+    .join("");
   $("editor").showModal();
 }
 $("editForm").onsubmit = async (e) => {
@@ -653,7 +660,21 @@ $("editForm").onsubmit = async (e) => {
       ),
     ];
     t.notes = $("editNotes").value.trim();
-    await save(t);
+    const memberships = new Set(
+      [...$("editMembership").querySelectorAll("input:checked")].map(
+        (input) => input.dataset.membership,
+      ),
+    );
+    await stores(["tracks", "audio", "playlists"], "readwrite", (tx) => {
+      tx.objectStore("tracks").put(withoutBlob(cleanTrack(t)));
+      for (const list of state.playlists) {
+        tx.objectStore("playlists").put(
+          memberships.has(list.id)
+            ? addToPlaylist(list, [t.id])
+            : removeFromPlaylist(list, [t.id]),
+        );
+      }
+    });
     $("editor").close();
     await reload();
     notify("Cambios guardados.");
@@ -1023,7 +1044,7 @@ function renderPlaylists() {
     .sort((a, b) => a.created - b.created)
     .map(
       (l) =>
-        `<button data-playlist="${esc(l.id)}" class="${state.playlistId === l.id ? "active" : ""}" title="${esc(l.description)}"><span>${esc(l.name)}</span><b>${playlistTracks(l).length}</b></button>`,
+        `<button data-playlist="${esc(l.id)}" class="${state.playlistId === l.id ? "active" : ""}" title="${esc(l.description)}"><span>${esc(l.name)}<small>${esc(describePlaylist(l, state.tracks))}</small></span></button>`,
     )
     .join("");
   const l = currentPlaylist();
@@ -1033,7 +1054,7 @@ function renderPlaylists() {
     $("playlistTitle").textContent = l.name;
     $("playlistDescription").textContent = l.description;
     $("playlistSummary").textContent =
-      `${playlistTracks(l).length} temas · ${Math.round(playlistTracks(l).reduce((s, t) => s + (t.duration || 0), 0) / 60)} min · Orden manual`;
+      `${describePlaylist(l, state.tracks)} · Orden manual`;
     $("playPlaylist").disabled = !playlistTracks(l).length;
   }
 }
@@ -1220,6 +1241,32 @@ $("playPlaylist").onclick = () => {
     );
   }
 };
+$("duplicatePlaylist").onclick = async () => {
+  const list = currentPlaylist();
+  if (!list) return;
+  try {
+    await savePlaylist({
+      ...list,
+      id: crypto.randomUUID(),
+      name: `Copia de ${list.name}`,
+      trackIds: [...list.trackIds],
+      created: Date.now(),
+    });
+    await reload();
+    notify("Lista duplicada.");
+  } catch {
+    notify("No se ha podido duplicar la lista.");
+  }
+};
+setupPointerReordering({
+  container: $("tracks"),
+  getPlaylist: currentPlaylist,
+  canReorder: () =>
+    state.mode !== "player" && !state.busy && $("sort").value === "list",
+  save: savePlaylist,
+  render: reload,
+  notify,
+});
 async function init() {
   setBusy(true);
   try {

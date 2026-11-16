@@ -154,3 +154,35 @@ export function migrateTrackV3(track) {
 export function supportsBackupVersion(version) {
   return [1, 2, 3].includes(version);
 }
+
+export function moveToIndex(list, id, targetIndex) {
+  const from = list.trackIds.indexOf(id);
+  if (from < 0 || !Number.isInteger(targetIndex)) return list;
+  const to = Math.max(0, Math.min(list.trackIds.length - 1, targetIndex));
+  if (from === to) return list;
+  const trackIds = [...list.trackIds];
+  trackIds.splice(from, 1);
+  trackIds.splice(to, 0, id);
+  return { ...list, trackIds };
+}
+
+export function playlistStats(list, tracks) {
+  const lookup = new Map(tracks.map((track) => [track.id, track]));
+  const selected = list.trackIds.map((id) => lookup.get(id)).filter(Boolean);
+  const bpms = selected
+    .map((track) => track.bpm)
+    .filter((bpm) => Number.isFinite(bpm) && bpm > 0);
+  return {
+    count: list.trackIds.length,
+    duration: selected.reduce(
+      (seconds, track) =>
+        seconds +
+        (Number.isFinite(track.duration) && track.duration > 0
+          ? track.duration
+          : 0),
+      0,
+    ),
+    minBpm: bpms.length ? Math.min(...bpms) : null,
+    maxBpm: bpms.length ? Math.max(...bpms) : null,
+  };
+}
