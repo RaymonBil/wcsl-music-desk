@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+  <meta charset="utf-8" /><title>Pruebas de migración · Music Desk</title
+  ><style>
+    body {
+      font: 16px system-ui;
+      background: #17131f;
+      color: #eee;
+      padding: 30px;
+    }
+    li {
+      margin: 15px 0;
+    }
+  </style>
+  <h1>Pruebas de migración IndexedDB 3</h1>
+  <p>
+    Solo se usan bases de prueba con nombres únicos. No se toca tu biblioteca.
+  </p>
+  <ul id="results"></ul>
+  <p id="summary">Ejecutando…</p>
+  <script type="module">
+    import { openLibraryDatabase } from "../dist/database.js";
+    const assert = (value, message) => {
+      if (!value) throw Error(message);
+    };
+    function legacy(name, version, track, list, blob) {
+      return new Promise((resolve, reject) => {
+        const r = indexedDB.open(name, version);
+        r.onupgradeneeded = () => {
+          const db = r.result;
+          db.createObjectStore("tracks", { keyPath: "id" });
+          db.createObjectStore("playlists", { keyPath: "id" });
+          if (version === 2) db.createObjectStore("audio", { keyPath: "id" });
+        };
+        r.onerror = () => reject(r.error);
+        r.onsuccess = () => {
+          const db = r.result,
+            tx = db.transaction([...db.objectStoreNames], "readwrite");
+          tx.objectStore("tracks").put(
+            version === 1 ? { ...track, blob } : track,
+          );
+          tx.objectStore("playlists").put(list);
+          if (version === 2)
+            tx.objectStore("audio").put({ id: track.id, blob });
+          tx.oncomplete = () => {
+            db.close();
+            resolve();
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      });
+    }
+    function all(db) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(["tracks", "audio", "playlists"]),
+          tracks = tx.objectStore("tracks").getAll(),
+          audio = tx.objectStore("audio").getAll(),
+          lists = tx.objectStore("playlists").getAll();
+        tx.oncomplete = () =>
+          resolve({
+            tracks: tracks.result,
+            audio: audio.result,
+            lists: lists.result,
+          });
+        tx.onerror = () => reject(tx.error);
+      });
+    }
+    let passed = 0,
+      failed = 0;
+    for (const version of [1, 2]) {
+      const name = "wcsl-migration-test-" + version + "-" + crypto.randomUUID();
+      let db;
+      const li = document.createElement("li");
+      document.getElementById("results").append(li);
+      try {
+        const blob = new Blob(["audio original " + version], {
+            type: "audio/wav",
+          }),
+          track = {
+            id: "a".repeat(64),
+            title: "Migración",
+            bpm: 183,
+            bpmSource: "manual",
+            rawBpm: 183,
+            tags: ["WCS"],
+            favorite: true,
+            notes: "No cambiar",
+            extra: 42,
+          },
+          list = {
+            id: "custom",
+            name: "Mi clase",
+            description: "Conservar",
+            trackIds: [track.id],
+          };
+        await legacy(name, version, track, list, blob);
+        db = await openLibraryDatabase(name);
+        assert(db.version === 3, "Versión incorrecta");
+        let result = await all(db);
+        assert(result.tracks.length === 1, "Se perdieron canciones");
+        for (const key of Object.keys(track))
+          assert(
+            JSON.stringify(result.tracks[0][key]) ===
+              JSON.stringify(track[key]),
+            "Cambió " + key,
+          );
+        assert(result.tracks[0].speed === 1, "No aplica 100 %");
+        assert(
+          JSON.stringify(result.lists) == JSON.stringify([list]),
+          "Cambió la lista",
+        );
+        assert(
+          (await result.audio[0].blob.text()) === (await blob.text()),
+          "Cambió el audio",
+        );
+        db.close();
+        db = await openLibraryDatabase(name);
+        result = await all(db);
+        assert(
+          result.tracks.length === 1 && result.tracks[0].bpm === 183,
+          "Reabrir modifica datos",
+        );
+        li.textContent = `✓ v${version} → v3: audio, BPM, listas y metadatos intactos; reapertura correcta`;
+        passed++;
+      } catch (e) {
+        li.textContent = "✗ " + e.message;
+        failed++;
+      } finally {
+        db?.close();
+        indexedDB.deleteDatabase(name);
+      }
+    }
+    document.getElementById("summary").textContent =
+      `${passed} correctas · ${failed} fallidas`;
+  </script>
+</html>

@@ -1,20 +1,193 @@
 export const DEFAULT_PLAYLISTS = [
- ['warmup','Canciones de calentamiento','Selección manual para empezar la clase.'],
- ['exercises','Canciones para ejercicios en clase','Temas para practicar patrones, conexión y musicalidad.'],
- ['class-social','Canciones para sociales en clase','Música para bailar al terminar la clase.'],
- ['event-social','Sociales en eventos','Selección para encuentros y eventos.'],
- ['slow','Canciones de tempo lento','Tu selección manual de canciones lentas.'],
- ['medium','Canciones de tempo medio','Tu selección manual de canciones de velocidad media.'],
- ['high','Canciones de tempo alto','Tu selección manual de canciones de velocidad alta.'],
- ['fast','Canciones rápidas','Tu selección manual de canciones rápidas.']
-].map(([id,name,description],i)=>({id:'default-'+id,name,description,trackIds:[],created:i+1}));
-export function addToPlaylist(list, ids){return {...list,trackIds:[...new Set([...list.trackIds,...ids])]};}
-export function removeFromPlaylist(list, ids){const set=new Set(ids);return {...list,trackIds:list.trackIds.filter(id=>!set.has(id))};}
-export function moveInPlaylist(list,id,direction){const trackIds=[...list.trackIds],i=trackIds.indexOf(id),next=i+direction;if(i<0||next<0||next>=trackIds.length)return list;[trackIds[i],trackIds[next]]=[trackIds[next],trackIds[i]];return {...list,trackIds};}
-export function correctReportedDoubleTempo(track){
- const titles=String(track.title||'').split(' - ').map(s=>s.toLowerCase().replace(/\([^)]*\)|\[[^\]]*\]/g,'').replace(/^\s*\d+[.\s_-]+/,'').trim());
- if(!titles.some(t=>t==='grow up'||t==='cool')||track.bpmSource==='manual'||track.bpm<170||track.bpm>220||track.bpmCorrectionVersion===1)return track;
- return {...track,rawBpm:track.rawBpm||track.bpm,bpm:Math.round(track.bpm/2*10)/10,bpmCorrectionVersion:1,bpmCorrection:'Pulso de baile ajustado (÷2)'};
+  [
+    "warmup",
+    "Canciones de calentamiento",
+    "Selección manual para empezar la clase.",
+  ],
+  [
+    "exercises",
+    "Canciones para ejercicios en clase",
+    "Temas para practicar patrones, conexión y musicalidad.",
+  ],
+  [
+    "class-social",
+    "Canciones para sociales en clase",
+    "Música para bailar al terminar la clase.",
+  ],
+  [
+    "event-social",
+    "Sociales en eventos",
+    "Selección para encuentros y eventos.",
+  ],
+  [
+    "slow",
+    "Canciones de tempo lento",
+    "Tu selección manual de canciones lentas.",
+  ],
+  [
+    "medium",
+    "Canciones de tempo medio",
+    "Tu selección manual de canciones de velocidad media.",
+  ],
+  [
+    "high",
+    "Canciones de tempo alto",
+    "Tu selección manual de canciones de velocidad alta.",
+  ],
+  ["fast", "Canciones rápidas", "Tu selección manual de canciones rápidas."],
+].map(([id, name, description], i) => ({
+  id: "default-" + id,
+  name,
+  description,
+  trackIds: [],
+  created: i + 1,
+}));
+export function addToPlaylist(list, ids) {
+  return { ...list, trackIds: [...new Set([...list.trackIds, ...ids])] };
 }
-export function cleanTrack(record){return {...record,secondaryGenres:Array.isArray(record.secondaryGenres)?record.secondaryGenres:[],tags:Array.isArray(record.tags)?record.tags:[],notes:record.notes||'',genre:record.genre||''};}
-export function sanitizePlaylist(record){if(!record||typeof record.name!=='string'||!Array.isArray(record.trackIds))return null;return {id:String(record.id||'').slice(0,100),name:record.name.slice(0,100),description:String(record.description||'').slice(0,1000),trackIds:[...new Set(record.trackIds.filter(id=>typeof id==='string'&&/^[a-f0-9]{64}$/.test(id)))],created:Number(record.created)||Date.now()};}
+export function removeFromPlaylist(list, ids) {
+  const set = new Set(ids);
+  return { ...list, trackIds: list.trackIds.filter((id) => !set.has(id)) };
+}
+export function moveInPlaylist(list, id, direction) {
+  const trackIds = [...list.trackIds],
+    i = trackIds.indexOf(id),
+    next = i + direction;
+  if (i < 0 || next < 0 || next >= trackIds.length) return list;
+  [trackIds[i], trackIds[next]] = [trackIds[next], trackIds[i]];
+  return { ...list, trackIds };
+}
+export function correctReportedDoubleTempo(track) {
+  const titles = String(track.title || "")
+    .split(" - ")
+    .map((s) =>
+      s
+        .toLowerCase()
+        .replace(/\([^)]*\)|\[[^\]]*\]/g, "")
+        .replace(/^\s*\d+[.\s_-]+/, "")
+        .trim(),
+    );
+  if (
+    !titles.some((t) => t === "grow up" || t === "cool") ||
+    track.bpmSource === "manual" ||
+    track.bpm < 170 ||
+    track.bpm > 220 ||
+    track.bpmCorrectionVersion === 1
+  )
+    return track;
+  return {
+    ...track,
+    rawBpm: track.rawBpm || track.bpm,
+    bpm: Math.round((track.bpm / 2) * 10) / 10,
+    bpmCorrectionVersion: 1,
+    bpmCorrection: "Pulso de baile ajustado (÷2)",
+  };
+}
+export function cleanTrack(record) {
+  return {
+    ...record,
+    speed: normalizeSpeed(record.speed),
+    secondaryGenres: Array.isArray(record.secondaryGenres)
+      ? record.secondaryGenres
+      : [],
+    tags: Array.isArray(record.tags) ? record.tags : [],
+    notes: record.notes || "",
+    genre: record.genre || "",
+  };
+}
+export function sanitizePlaylist(record) {
+  if (
+    !record ||
+    typeof record.name !== "string" ||
+    !Array.isArray(record.trackIds)
+  )
+    return null;
+  return {
+    id: String(record.id || "").slice(0, 100),
+    name: record.name.slice(0, 100),
+    description: String(record.description || "").slice(0, 1000),
+    trackIds: [
+      ...new Set(
+        record.trackIds.filter(
+          (id) => typeof id === "string" && /^[a-f0-9]{64}$/.test(id),
+        ),
+      ),
+    ],
+    created: Number(record.created) || Date.now(),
+  };
+}
+
+// El porcentaje se redondea a pasos de 1 %. Valores ausentes o no finitos: 100 %.
+export function normalizeSpeed(value) {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0.8 ||
+    value > 1.2
+  )
+    return 1;
+  return Math.round(Math.max(0.8, Math.min(1.2, value)) * 100) / 100;
+}
+export function shiftSpeed(speed, percentagePoints) {
+  return normalizeSpeed(
+    Math.max(
+      0.8,
+      Math.min(1.2, normalizeSpeed(speed) + percentagePoints / 100),
+    ),
+  );
+}
+export function effectiveBpm(bpm, speed) {
+  return typeof bpm === "number" && Number.isFinite(bpm) && bpm > 0
+    ? Math.round(bpm * normalizeSpeed(speed))
+    : null;
+}
+export function speedDescription(bpm, speed) {
+  const percentage = Math.round(normalizeSpeed(speed) * 100),
+    effective = effectiveBpm(bpm, speed);
+  return effective === null
+    ? `${percentage} %`
+    : `${bpm} → ${effective} BPM · ${percentage} %`;
+}
+export function migrateTrackV3(track) {
+  return { ...track, speed: normalizeSpeed(track.speed) };
+}
+export function supportsBackupVersion(version) {
+  return [1, 2, 3].includes(version);
+}
+
+export function moveToIndex(list, id, targetIndex) {
+  const from = list.trackIds.indexOf(id);
+  if (from < 0 || !Number.isInteger(targetIndex)) return list;
+  const to = Math.max(0, Math.min(list.trackIds.length - 1, targetIndex));
+  if (from === to) return list;
+  const trackIds = [...list.trackIds];
+  trackIds.splice(from, 1);
+  trackIds.splice(to, 0, id);
+  return { ...list, trackIds };
+}
+
+export function playlistStats(list, tracks) {
+  const lookup = new Map(tracks.map((track) => [track.id, track]));
+  const selected = list.trackIds.map((id) => lookup.get(id)).filter(Boolean);
+  const bpms = selected
+    .map((track) => track.bpm)
+    .filter((bpm) => Number.isFinite(bpm) && bpm > 0);
+  return {
+    count: list.trackIds.length,
+    duration: selected.reduce(
+      (seconds, track) =>
+        seconds +
+        (Number.isFinite(track.duration) && track.duration > 0
+          ? track.duration
+          : 0),
+      0,
+    ),
+    minBpm: bpms.length ? Math.min(...bpms) : null,
+    maxBpm: bpms.length ? Math.max(...bpms) : null,
+  };
+}
+
+export function normalizeGapSeconds(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(60, Math.round(value)));
+}
