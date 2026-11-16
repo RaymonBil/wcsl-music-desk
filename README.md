@@ -73,3 +73,13 @@ Los planes gratuitos tienen cuotas; el coste depende del tamaño de la bibliotec
 ## Desarrollo y publicación
 
 Repositorio: https://github.com/RaymonBil/wcsl-music-desk. Rama `fase-1`, con primer commit exclusivamente de formato y commits separados por bloque. La configuración del alojamiento `.openai/hosting.json` no forma parte del repositorio público. Mantener el mismo origen para conservar la biblioteca existente.
+
+## Publicar en tu cuenta de Cloudflare
+
+La configuración `wrangler.json` sirve exclusivamente `dist/` con Workers Static Assets. No necesita compilación ni dependencias de la app. No contiene credenciales ni crea R2/D1. La publicación del código no sincroniza canciones ni listas entre dispositivos.
+
+Desde Workers & Pages, conecta el repositorio `RaymonBil/wcsl-music-desk`, selecciona la rama `fase-1` (contiene v0.3), el nombre `wcsl-music-desk` y la raíz del repositorio. Usa `npm test` como comando de validación y `npx wrangler@4 deploy` como comando de despliegue. No selecciones main hasta incorporar la fase 1. Cloudflare debe mostrar la URL final antes de dar por concluida la publicación.
+
+Alternativa desde un equipo con Node compatible con Wrangler: `npx wrangler@4 login` y después `npx wrangler@4 deploy`. El inicio de sesión se hace directamente con Cloudflare; no publiques tokens ni contraseñas en GitHub.
+
+La nueva URL tiene otro origen y comienza con una biblioteca local vacía. Antes de trasladar tu uso, abre la dirección antigua y descarga una «Copia completa (con audio)»; en la nueva URL, elige gestión y restaura esa copia. Conserva la dirección antigua y los archivos originales hasta comprobar canciones, listas y reproducción. Para compartir audio por streaming habrá que añadir R2 privado, una API y permisos de cuenta: esta publicación estática todavía no proporciona esa función.
