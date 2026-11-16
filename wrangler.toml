@@ -8,7 +8,8 @@ compatibility_date = "2026-11-16"
 # Dominio del equipo de Cloudflare Access y etiquetas AUD (separadas por comas) de las
 # aplicaciones de Access que protegen el sitio. La AUD no es secreta.
 ACCESS_TEAM_DOMAIN = "https://cold-salad-734d.cloudflareaccess.com"
-ACCESS_AUD = "7daa9a94c6df01deda8e708c43dc7fbb24c21c96e4d4f70af0b5dec523bee5d4"
+# Producción (wcsl-music-desk.pages.dev) y vistas previas (*.wcsl-music-desk.pages.dev).
+ACCESS_AUD = "23a0857b40f343b674c063301537b944e4e9742d49a23ad3c00dd2a4d56437b1,7daa9a94c6df01deda8e708c43dc7fbb24c21c96e4d4f70af0b5dec523bee5d4"
 
 [[d1_databases]]
 binding = "DB"
