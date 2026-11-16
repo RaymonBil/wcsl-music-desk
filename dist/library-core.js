@@ -16,5 +16,16 @@ export function correctReportedDoubleTempo(track){
  if(!titles.some(t=>t==='grow up'||t==='cool')||track.bpmSource==='manual'||track.bpm<170||track.bpm>220||track.bpmCorrectionVersion===1)return track;
  return {...track,rawBpm:track.rawBpm||track.bpm,bpm:Math.round(track.bpm/2*10)/10,bpmCorrectionVersion:1,bpmCorrection:'Pulso de baile ajustado (÷2)'};
 }
-export function cleanTrack(record){return {...record,secondaryGenres:Array.isArray(record.secondaryGenres)?record.secondaryGenres:[],tags:Array.isArray(record.tags)?record.tags:[],notes:record.notes||'',genre:record.genre||''};}
+export function cleanTrack(record){return {...record,speed:normalizeSpeed(record.speed),secondaryGenres:Array.isArray(record.secondaryGenres)?record.secondaryGenres:[],tags:Array.isArray(record.tags)?record.tags:[],notes:record.notes||'',genre:record.genre||''};}
 export function sanitizePlaylist(record){if(!record||typeof record.name!=='string'||!Array.isArray(record.trackIds))return null;return {id:String(record.id||'').slice(0,100),name:record.name.slice(0,100),description:String(record.description||'').slice(0,1000),trackIds:[...new Set(record.trackIds.filter(id=>typeof id==='string'&&/^[a-f0-9]{64}$/.test(id)))],created:Number(record.created)||Date.now()};}
+
+// El porcentaje se redondea a pasos de 1 %. Valores ausentes o no finitos: 100 %.
+export function normalizeSpeed(value){
+ if(typeof value!=='number'||!Number.isFinite(value))return 1;
+ return Math.round(Math.max(.8,Math.min(1.2,value))*100)/100;
+}
+export function shiftSpeed(speed,percentagePoints){return normalizeSpeed(normalizeSpeed(speed)+percentagePoints/100);}
+export function effectiveBpm(bpm,speed){return typeof bpm==='number'&&Number.isFinite(bpm)&&bpm>0?Math.round(bpm*normalizeSpeed(speed)):null;}
+export function speedDescription(bpm,speed){const percentage=Math.round(normalizeSpeed(speed)*100),effective=effectiveBpm(bpm,speed);return effective===null?`${percentage} %`:`${bpm} BPM → ${effective} BPM (${percentage} %)`;}
+export function migrateTrackV3(track){return {...track,speed:normalizeSpeed(track.speed)};}
+export function supportsBackupVersion(version){return [1,2,3].includes(version);}
