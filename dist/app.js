@@ -1,3 +1,5 @@
+import { openLibraryDatabase } from "./database.js";
+import { applyPlaybackSpeed } from "./playback.js";
 import {
   DEFAULT_PLAYLISTS,
   addToPlaylist,
@@ -6,6 +8,10 @@ import {
   correctReportedDoubleTempo,
   cleanTrack,
   sanitizePlaylist,
+  normalizeSpeed,
+  shiftSpeed,
+  speedDescription,
+  supportsBackupVersion,
 } from "./library-core.js";
 const $ = (id) => document.getElementById(id);
 const state = {
@@ -24,6 +30,7 @@ const state = {
   cancel: false,
   playlistEditing: null,
   pendingAdd: [],
+  speed: 1,
 };
 const audio = $("audio");
 audio.volume = 0.8;
@@ -237,7 +244,7 @@ function render() {
   $("tracks").innerHTML = list
     .map(
       (t) =>
-        `<tr class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span></td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
+        `<tr class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span></td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
           .slice(0, 3)
           .map((tag) => `<span class="tag">${esc(tag)}</span>`)
           .join(
@@ -249,12 +256,13 @@ function render() {
     $("next").disabled =
     $("playPause").disabled =
       !state.tracks.length;
+  renderSpeed();
   if (state.current) {
     const t = state.tracks.find((t) => t.id === state.current);
     if (t) {
       $("nowTitle").textContent = t.title;
       $("nowArtist").textContent = t.artist || "Artista sin indicar";
-      $("nowBpm").textContent = t.bpm ? `${t.bpm} BPM` : "";
+      $("nowBpm").textContent = speedDescription(t.bpm, state.speed);
     }
   }
 }
@@ -407,6 +415,8 @@ async function play(id, queue = null) {
     state.urls.set("current", url);
     audio.src = url;
     state.current = id;
+    $("saveSpeed").checked = normalizeSpeed(t.speed) !== 1;
+    setSpeed(t.speed);
     updateQueueInfo();
     render();
     await audio.play();
@@ -414,6 +424,71 @@ async function play(id, queue = null) {
     notify(`No se puede reproducir: ${e.message}`);
   }
 }
+function renderSpeed() {
+  const track = state.tracks.find((t) => t.id === state.current),
+    hasTrack = !!track;
+  for (const id of [
+    "speed",
+    "speedMinus",
+    "speedNormal",
+    "speedPlus",
+    "resetSpeed",
+    "saveSpeed",
+  ])
+    $(id).disabled = !hasTrack;
+  $("speed").value = Math.round(state.speed * 100);
+  $("speedValue").textContent = `${Math.round(state.speed * 100)} %`;
+  $("speed").setAttribute(
+    "aria-valuetext",
+    `${Math.round(state.speed * 100)} por ciento`,
+  );
+  if (track) $("nowBpm").textContent = speedDescription(track.bpm, state.speed);
+  else $("nowBpm").textContent = "";
+}
+function setSpeed(value) {
+  state.speed = applyPlaybackSpeed(audio, value);
+  renderSpeed();
+}
+async function persistSpeed(id, value) {
+  try {
+    const speed = normalizeSpeed(value);
+    await stores(["tracks"], "readwrite", (tx) => {
+      const tracks = tx.objectStore("tracks"),
+        request = tracks.get(id);
+      request.onsuccess = () => {
+        if (request.result) tracks.put({ ...request.result, speed });
+      };
+    });
+    await reload();
+  } catch {
+    notify(
+      "No se ha podido guardar la velocidad. El ajuste de reproducción sigue activo.",
+    );
+  }
+}
+function changeSpeed(value) {
+  if (!state.current) return;
+  setSpeed(value);
+  if ($("saveSpeed").checked) persistSpeed(state.current, state.speed);
+}
+$("speed").oninput = () => {
+  if (state.current) setSpeed(Number($("speed").value) / 100);
+};
+$("speed").onchange = () => {
+  if (state.current && $("saveSpeed").checked)
+    persistSpeed(state.current, state.speed);
+};
+$("speedMinus").onclick = () => changeSpeed(shiftSpeed(state.speed, -5));
+$("speedPlus").onclick = () => changeSpeed(shiftSpeed(state.speed, 5));
+$("speedNormal").onclick = $("resetSpeed").onclick = () => changeSpeed(1);
+$("saveSpeed").onchange = () => {
+  if (state.current)
+    persistSpeed(state.current, $("saveSpeed").checked ? state.speed : 1);
+};
+// Volver a aplicar el ajuste si el navegador reinicia la tasa al cargar el audio.
+audio.onloadedmetadata = () => {
+  if (state.current) applyPlaybackSpeed(audio, state.speed);
+};
 function updateQueueInfo() {
   const index = state.queue.indexOf(state.current);
   $("queueInfo").textContent =
@@ -611,6 +686,8 @@ $("deleteTrack").onclick = async () => {
       audio.removeAttribute("src");
       audio.load();
       state.current = null;
+      $("saveSpeed").checked = false;
+      setSpeed(1);
       $("nowTitle").textContent = "Elige una canción";
       $("nowArtist").textContent = "Tu música, lista para la clase";
       $("nowBpm").textContent = "";
@@ -662,7 +739,7 @@ async function backup() {
       [
         JSON.stringify({
           format: "wcsl-music-desk",
-          version: 2,
+          version: 3,
           playlists: state.playlists,
           created: new Date().toISOString(),
           tracks: records,
@@ -695,7 +772,7 @@ async function restore(file) {
     const data = JSON.parse(await file.text());
     if (
       data.format !== "wcsl-music-desk" ||
-      ![1, 2].includes(data.version) ||
+      !supportsBackupVersion(data.version) ||
       !Array.isArray(data.tracks)
     )
       throw new Error("No es una copia compatible.");
@@ -716,6 +793,7 @@ async function restore(file) {
         id,
         title: String(record.title || "Sin título").slice(0, 200),
         artist: String(record.artist || "").slice(0, 200),
+        speed: normalizeSpeed(record.speed),
         genre: String(record.genre || "").slice(0, 60),
         secondaryGenres: Array.isArray(record.secondaryGenres)
           ? record.secondaryGenres
@@ -748,7 +826,7 @@ async function restore(file) {
       state.tracks.push(cleanTrack(withoutBlob(t)));
       count++;
     }
-    if (data.version === 2 && Array.isArray(data.playlists)) {
+    if (data.version >= 2 && Array.isArray(data.playlists)) {
       for (const record of data.playlists) {
         const list = sanitizePlaylist(record);
         if (!list?.id) continue;
@@ -903,18 +981,27 @@ $("seek").oninput = () => {
 };
 $("volume").oninput = () => (audio.volume = +$("volume").value);
 window.addEventListener("keydown", (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.isComposing || e.repeat) return;
   if (
-    e.code === "Space" &&
-    !["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(
-      document.activeElement.tagName,
-    ) &&
-    !$("editor").open &&
-    !$("help").open &&
-    !$("playlistDialog").open &&
-    !$("addDialog").open
-  ) {
+    document.activeElement.closest(
+      "input, textarea, select, button, [contenteditable=true]",
+    ) ||
+    document.querySelector("dialog[open]")
+  )
+    return;
+  if (e.code === "Space") {
     e.preventDefault();
     $("playPause").click();
+  }
+  if (
+    state.mode !== "player" &&
+    state.current &&
+    ["[", "]", "\\"].includes(e.key)
+  ) {
+    e.preventDefault();
+    changeSpeed(
+      e.key === "\\" ? 1 : shiftSpeed(state.speed, e.key === "[" ? -1 : 1),
+    );
   }
 });
 const drop = $("dropzone");
@@ -1136,40 +1223,7 @@ $("playPlaylist").onclick = () => {
 async function init() {
   setBusy(true);
   try {
-    db = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("wcsl-music-desk", 2);
-      request.onupgradeneeded = () => {
-        const d = request.result,
-          tx = request.transaction;
-        if (!d.objectStoreNames.contains("tracks"))
-          d.createObjectStore("tracks", { keyPath: "id" });
-        if (!d.objectStoreNames.contains("audio"))
-          d.createObjectStore("audio", { keyPath: "id" });
-        if (!d.objectStoreNames.contains("playlists")) {
-          const lists = d.createObjectStore("playlists", { keyPath: "id" });
-          for (const l of DEFAULT_PLAYLISTS) lists.put(l);
-        }
-        // Atomic migration: move only the blobs; all legacy song metadata remains intact.
-        const cursor = tx.objectStore("tracks").openCursor();
-        cursor.onsuccess = () => {
-          const c = cursor.result;
-          if (!c) return;
-          const t = c.value;
-          if (t.blob) {
-            tx.objectStore("audio").put({ id: t.id, blob: t.blob });
-            delete t.blob;
-            c.update(t);
-          }
-          c.continue();
-        };
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-      request.onblocked = () =>
-        reject(
-          new Error("Cierra otras pestañas de la app y vuelve a abrirla."),
-        );
-    });
+    db = await openLibraryDatabase();
     db.onversionchange = () => {
       db.close();
       setBusy(true);

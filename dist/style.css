@@ -1078,3 +1078,96 @@ body:has(#playlistHeader:not([hidden])) #empty {
     padding: 18px;
   }
 }
+/* Fase 1: controles de velocidad integrados en el reproductor existente. */
+.speed-panel {
+  grid-column: 1/-1;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.speed-slider,
+.speed-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.speed-slider input {
+  width: min(260px, 40vw);
+}
+.speed-slider output {
+  color: var(--purple);
+  min-width: 42px;
+  font-variant-numeric: tabular-nums;
+}
+.speed-actions label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.speed-actions input {
+  accent-color: var(--purple);
+}
+.speed-panel small {
+  text-align: center;
+  font-size: 10px;
+}
+.speed-actions .secondary {
+  padding: 5px 12px;
+}
+.saved-speed {
+  display: block;
+  font-size: 10px;
+  color: var(--pink);
+  margin-top: 5px;
+}
+.now .bpm-badge {
+  white-space: normal;
+  font-size: 11px;
+  line-height: 1.6;
+  min-width: 130px;
+}
+.player {
+  row-gap: 12px;
+}
+main {
+  padding-bottom: 280px;
+}
+aside {
+  bottom: 250px;
+}
+#toast {
+  bottom: 270px;
+}
+@media (min-width: 1500px) {
+  main {
+    padding-bottom: 280px;
+  }
+}
+@media (max-width: 720px) {
+  main {
+    padding-bottom: 350px;
+  }
+  .speed-panel {
+    gap: 7px;
+  }
+  .speed-slider,
+  .speed-actions {
+    gap: 8px;
+  }
+  .speed-panel small {
+    max-width: 95vw;
+  }
+  .now .bpm-badge {
+    min-width: 0;
+    max-width: 155px;
+  }
+  #toast {
+    bottom: 350px;
+  }
+}

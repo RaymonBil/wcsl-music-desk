@@ -1,9 +1,84 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {DEFAULT_PLAYLISTS,addToPlaylist,removeFromPlaylist,moveInPlaylist,correctReportedDoubleTempo,cleanTrack,sanitizePlaylist} from '../dist/library-core.js';
-test('eight editable seed playlists have stable unique IDs and are empty',()=>{assert.equal(DEFAULT_PLAYLISTS.length,8);assert.equal(new Set(DEFAULT_PLAYLISTS.map(l=>l.id)).size,8);assert.ok(DEFAULT_PLAYLISTS.every(l=>l.trackIds.length===0));});
-test('membership deduplicates, preserves order and supports removal and moving',()=>{const l={id:'one',name:'Clase',trackIds:['a','b']};const added=addToPlaylist(l,['b','c','a','d']);assert.deepEqual(added.trackIds,['a','b','c','d']);assert.deepEqual(l.trackIds,['a','b']);assert.deepEqual(moveInPlaylist(added,'c',-1).trackIds,['a','c','b','d']);assert.deepEqual(removeFromPlaylist(added,['b','d']).trackIds,['a','c']);assert.equal(moveInPlaylist(l,'a',-1),l);assert.equal(moveInPlaylist(l,'absent',1),l);});
-for(const title of ['Grow Up','Cool','01 - Cool (Radio Edit)'])test(`reported double tempo: ${title}`,()=>{const t={id:'x',title,bpm:190,bpmSource:'auto',favorite:true,tags:['WCS']};const fixed=correctReportedDoubleTempo(t);assert.equal(fixed.bpm,95);assert.equal(fixed.rawBpm,190);assert.equal(fixed.favorite,true);assert.equal(correctReportedDoubleTempo(fixed),fixed);assert.equal(t.bpm,190);});
-test('manual, unrelated and already-correct tempos are never silently halved',()=>{for(const t of [{title:'Cool',bpm:190,bpmSource:'manual'},{title:'Cool for the Summer',bpm:190,bpmSource:'auto'},{title:'Grow Up',bpm:95,bpmSource:'auto'},{title:'Fast swing',bpm:180,bpmSource:'auto'}])assert.equal(correctReportedDoubleTempo(t),t);});
-test('legacy metadata survives normalization',()=>{const old={id:'x',title:'Song',genre:'Blues',bpm:100,favorite:true,tags:['old'],notes:'keep'};const t=cleanTrack(old);assert.deepEqual(t.secondaryGenres,[]);for(const key of Object.keys(old))assert.deepEqual(t[key],old[key]);});
-test('restore validates playlist membership and removes duplicates',()=>{const hash='a'.repeat(64);assert.deepEqual(sanitizePlaylist({id:'x',name:'Warmup',description:'Keep',trackIds:[hash,hash,'invalid']}).trackIds,[hash]);assert.equal(sanitizePlaylist({name:'Broken'}),null);});
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import {
+  DEFAULT_PLAYLISTS,
+  addToPlaylist,
+  removeFromPlaylist,
+  moveInPlaylist,
+  correctReportedDoubleTempo,
+  cleanTrack,
+  sanitizePlaylist,
+} from "../dist/library-core.js";
+test("eight editable seed playlists have stable unique IDs and are empty", () => {
+  assert.equal(DEFAULT_PLAYLISTS.length, 8);
+  assert.equal(new Set(DEFAULT_PLAYLISTS.map((l) => l.id)).size, 8);
+  assert.ok(DEFAULT_PLAYLISTS.every((l) => l.trackIds.length === 0));
+});
+test("membership deduplicates, preserves order and supports removal and moving", () => {
+  const l = { id: "one", name: "Clase", trackIds: ["a", "b"] };
+  const added = addToPlaylist(l, ["b", "c", "a", "d"]);
+  assert.deepEqual(added.trackIds, ["a", "b", "c", "d"]);
+  assert.deepEqual(l.trackIds, ["a", "b"]);
+  assert.deepEqual(moveInPlaylist(added, "c", -1).trackIds, [
+    "a",
+    "c",
+    "b",
+    "d",
+  ]);
+  assert.deepEqual(removeFromPlaylist(added, ["b", "d"]).trackIds, ["a", "c"]);
+  assert.equal(moveInPlaylist(l, "a", -1), l);
+  assert.equal(moveInPlaylist(l, "absent", 1), l);
+});
+for (const title of ["Grow Up", "Cool", "01 - Cool (Radio Edit)"])
+  test(`reported double tempo: ${title}`, () => {
+    const t = {
+      id: "x",
+      title,
+      bpm: 190,
+      bpmSource: "auto",
+      favorite: true,
+      tags: ["WCS"],
+    };
+    const fixed = correctReportedDoubleTempo(t);
+    assert.equal(fixed.bpm, 95);
+    assert.equal(fixed.rawBpm, 190);
+    assert.equal(fixed.favorite, true);
+    assert.equal(correctReportedDoubleTempo(fixed), fixed);
+    assert.equal(t.bpm, 190);
+  });
+test("manual, unrelated and already-correct tempos are never silently halved", () => {
+  for (const t of [
+    { title: "Cool", bpm: 190, bpmSource: "manual" },
+    { title: "Cool for the Summer", bpm: 190, bpmSource: "auto" },
+    { title: "Grow Up", bpm: 95, bpmSource: "auto" },
+    { title: "Fast swing", bpm: 180, bpmSource: "auto" },
+  ])
+    assert.equal(correctReportedDoubleTempo(t), t);
+});
+test("legacy metadata survives normalization", () => {
+  const old = {
+    id: "x",
+    title: "Song",
+    genre: "Blues",
+    bpm: 100,
+    favorite: true,
+    tags: ["old"],
+    notes: "keep",
+  };
+  const t = cleanTrack(old);
+  assert.deepEqual(t.secondaryGenres, []);
+  for (const key of Object.keys(old)) assert.deepEqual(t[key], old[key]);
+});
+test("restore validates playlist membership and removes duplicates", () => {
+  const hash = "a".repeat(64);
+  assert.deepEqual(
+    sanitizePlaylist({
+      id: "x",
+      name: "Warmup",
+      description: "Keep",
+      trackIds: [hash, hash, "invalid"],
+    }).trackIds,
+    [hash],
+  );
+  assert.equal(sanitizePlaylist({ name: "Broken" }), null);
+});

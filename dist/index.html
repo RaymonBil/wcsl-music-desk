@@ -237,7 +237,7 @@
           <strong id="nowTitle">Elige una canción</strong
           ><small id="nowArtist">Tu música, lista para la clase</small>
         </div>
-        <span id="nowBpm" class="bpm-badge"></span>
+        <span id="nowBpm" class="bpm-badge" aria-live="polite"></span>
       </div>
       <div class="transport">
         <div class="playback-mode">
@@ -295,6 +295,48 @@
           step="0.01"
           value="0.8"
         />
+      </div>
+      <div class="speed-panel" aria-label="Control de velocidad">
+        <div class="speed-slider">
+          <label for="speed">Velocidad</label
+          ><input
+            id="speed"
+            type="range"
+            min="80"
+            max="120"
+            step="1"
+            value="100"
+            disabled
+          /><output id="speedValue" for="speed">100 %</output
+          ><button id="resetSpeed" class="text-button" disabled>
+            Restablecer al 100 %
+          </button>
+        </div>
+        <div class="speed-actions">
+          <button
+            id="speedMinus"
+            class="secondary"
+            aria-label="Reducir velocidad cinco puntos porcentuales"
+            disabled
+          >
+            −5 %</button
+          ><button id="speedNormal" class="secondary" disabled>100 %</button
+          ><button
+            id="speedPlus"
+            class="secondary"
+            aria-label="Aumentar velocidad cinco puntos porcentuales"
+            disabled
+          >
+            +5 %</button
+          ><label
+            ><input id="saveSpeed" type="checkbox" disabled /> Guardar esta
+            velocidad para la canción</label
+          >
+        </div>
+        <small
+          >Sin marcar: ajuste temporal. Desmarcar elimina la velocidad guardada;
+          el ajuste actual sigue sonando.</small
+        >
       </div>
       <audio id="audio" preload="metadata"></audio>
     </section>
@@ -438,6 +480,12 @@
         orden completo de esa lista, aunque tengas filtros activos. La cola de
         reproducción conserva el orden con el que la iniciaste. La consulta de
         datos mediante IA está pendiente de conexión.
+      </p>
+      <p>
+        En el reproductor puedes cambiar la velocidad entre el 80 % y el 120 %,
+        manteniendo el tono cuando el navegador lo admite. Marca «Guardar esta
+        velocidad para la canción» para recuperarla al reproducir ese tema. Los
+        BPM originales y los filtros no cambian.
       </p>
       <button id="gotIt" class="primary">Entendido</button>
     </dialog>
