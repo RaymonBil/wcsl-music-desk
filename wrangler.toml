@@ -1,0 +1,19 @@
+# Configuración de Cloudflare Pages (app estática + API en functions/).
+# No contiene secretos: los correos autorizados viven en la tabla `members` de D1.
+name = "wcsl-music-desk"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-11-16"
+
+[vars]
+# Dominio del equipo de Cloudflare Access y etiqueta AUD de la aplicación protegida.
+ACCESS_TEAM_DOMAIN = "https://cold-salad-734d.cloudflareaccess.com"
+ACCESS_AUD = ""
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wcsl-music-db"
+database_id = "aba62d63-f893-4a1b-9fa0-a25d3299d8e7"
+
+[[r2_buckets]]
+binding = "AUDIO"
+bucket_name = "wcsl-music"
