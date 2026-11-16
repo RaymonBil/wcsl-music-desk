@@ -1,3 +1,9 @@
+import {
+  appendToQueue,
+  moveQueueItem,
+  removeQueueItem,
+  nextQueueIndex,
+} from "./queue-core.js";
 import { createGapController } from "./gap-controls.js";
 import { createLiveController } from "./live-controls.js";
 import { prepareOfflineShell } from "./offline.js";
@@ -36,6 +42,7 @@ const state = {
   playlistId: null,
   selected: new Set(),
   queue: [],
+  queueIndex: -1,
   cancel: false,
   playlistEditing: null,
   pendingAdd: [],
@@ -221,6 +228,7 @@ function render() {
   live?.update();
   renderPlaylists();
   renderSelection(list);
+  updateQueueInfo();
   const genres = [
     ...new Set(state.tracks.map((t) => t.genre || "Sin estilo")),
   ].sort((a, b) => a.localeCompare(b, "es"));
@@ -272,7 +280,7 @@ function render() {
   $("tracks").innerHTML = list
     .map(
       (t) =>
-        `<tr data-track="${t.id}" class="${state.current === t.id ? "playing" : ""}"><td class="row-select edit-only"><input type="checkbox" data-select="${t.id}" ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" ${state.mode === "player" && !t.ready ? "disabled" : ""} data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span>${state.mode === "player" && !t.ready ? `<small class="pending-track">Pendiente: ${esc(t.filename)}</small>` : ""}</td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
+        `<tr data-track="${t.id}" class="${state.current === t.id ? "playing" : ""}"><td class="row-select"><input type="checkbox" data-select="${t.id}" ${state.mode === "player" && !t.ready ? "disabled" : ""} ${state.selected.has(t.id) ? "checked" : ""} aria-label="Seleccionar ${esc(t.title)}"></td><td class="small-col"><button class="row-play" ${state.mode === "player" && !t.ready ? "disabled" : ""} data-action="play" data-id="${t.id}" aria-label="Reproducir ${esc(t.title)}">${state.current === t.id && !audio.paused ? "Ⅱ" : "▶"}</button></td><td><strong class="track-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="track-artist">${esc(t.artist || "Artista sin indicar")}</span><button class="text-button enqueue-track" data-action="enqueue" data-id="${t.id}" ${state.mode === "player" && !t.ready ? "disabled" : ""} aria-label="Añadir ${esc(t.title)} a la cola">＋ Cola</button>${state.mode === "player" && !t.ready ? `<small class="pending-track">Pendiente: ${esc(t.filename)}</small>` : ""}</td><td><span class="genre-pill">${esc(t.genre || "Sin estilo")}</span><span class="secondary-genres">${esc(t.secondaryGenres.join(" · "))}</span></td><td><b class="bpm-badge">${t.bpm || "—"}</b>${normalizeSpeed(t.speed) !== 1 ? `<span class="saved-speed" title="Velocidad guardada para esta canción">Guardada: ${Math.round(t.speed * 100)} %</span>` : ""}${t.bpmSource === "auto" ? `<span class="review">${t.bpmCorrection ? "Pulso ÷2 · revisar" : "Estimado · revisar"}</span>` : t.bpmSource === "failed" ? '<span class="review">Anotar manualmente</span>' : ""}</td><td class="muted">${time(t.duration)}</td><td>${t.tags
           .slice(0, 3)
           .map((tag) => `<span class="tag">${esc(tag)}</span>`)
           .join(
@@ -425,12 +433,15 @@ async function importFiles(files) {
     await reload();
   }
 }
-async function play(id, queue = null) {
+async function play(id, queue = null, position = null) {
   gap.cancel();
   const token = ++playToken;
-  if (queue) state.queue = [...queue];
+  if (queue) {
+    state.queue = [...queue];
+    state.queueIndex = position ?? queue.indexOf(id);
+  } else if (position !== null) state.queueIndex = position;
   try {
-    if (state.current === id && !queue) {
+    if (state.current === id && !queue && position === null && !audio.ended) {
       if (audio.paused) await audio.play();
       else audio.pause();
       return;
@@ -524,26 +535,122 @@ audio.onloadedmetadata = () => {
   if (state.current) applyPlaybackSpeed(audio, state.speed);
 };
 function updateQueueInfo() {
-  const index = state.queue.indexOf(state.current);
-  $("queueInfo").textContent =
-    index >= 0 ? `${index + 1} / ${state.queue.length}` : "";
+  const index = state.queueIndex;
+  $("queueInfo").textContent = state.queue.length
+    ? `${index >= 0 ? index + 1 : 0} / ${state.queue.length}`
+    : "";
+  $("openQueue").textContent = `Ver cola (${state.queue.length})`;
+  renderQueue();
+  live?.update();
+}
+function renderQueue() {
+  const lookup = new Map(state.tracks.map((track) => [track.id, track]));
+  $("queueSummary").textContent =
+    `${state.queue.length} temas · Cola temporal. Las listas guardadas conservan su orden.`;
+  $("queueEmpty").hidden = state.queue.length > 0;
+  $("queueTracks").innerHTML = state.queue
+    .map((id, index) => {
+      const track = lookup.get(id),
+        current = index === state.queueIndex;
+      return `<li class="queue-entry ${current ? "queue-current" : ""}">
+      <span class="queue-position">${index + 1}</span>
+      <div class="queue-title"><strong>${esc(track?.title || "Tema no disponible")}</strong><small>${esc(track?.artist || "")} ${current ? "· Actual" : ""}</small></div>
+      <div class="queue-actions">
+        <button class="secondary" data-queue="play" data-index="${index}" aria-label="Reproducir posición ${index + 1}">▶</button>
+        <button class="secondary" data-queue="up" data-index="${index}" ${index === 0 ? "disabled" : ""} aria-label="Subir posición ${index + 1}">↑</button>
+        <button class="secondary" data-queue="down" data-index="${index}" ${index === state.queue.length - 1 ? "disabled" : ""} aria-label="Bajar posición ${index + 1}">↓</button>
+        <button class="secondary" data-queue="remove" data-index="${index}" ${current ? "disabled" : ""} aria-label="Quitar posición ${index + 1} de la cola">✕</button>
+      </div></li>`;
+    })
+    .join("");
+}
+function enqueue(ids) {
+  const available = new Set(
+    state.tracks
+      .filter((track) => state.mode !== "player" || track.ready)
+      .map((track) => track.id),
+  );
+  const ready = ids.filter((id) => available.has(id));
+  if (!ready.length)
+    return notify("Selecciona canciones con audio disponible.");
+  state.queue = appendToQueue(state.queue, ready);
+  updateQueueInfo();
+  notify(
+    `${ready.length} tema${ready.length === 1 ? " añadido" : "s añadidos"} al final de la cola.`,
+  );
 }
 function advance(direction, automatic = false) {
   gap.cancel();
   if (automatic && !$("continuous").checked) return;
-  const ids = state.queue.length
-    ? state.queue
-    : filtered()
-        .filter((track) => state.mode !== "player" || track.ready)
-        .map((t) => t.id);
-  if (!ids.length) return;
-  const index = ids.indexOf(state.current),
-    next = index < 0 ? 0 : index + direction;
-  if (automatic && next >= ids.length) return;
-  const nextId = ids[(next + ids.length) % ids.length];
-  if (automatic) gap.schedule(() => play(nextId), state.gapSeconds);
-  else play(nextId);
+  if (!state.queue.length) {
+    state.queue = filtered()
+      .filter((track) => state.mode !== "player" || track.ready)
+      .map((track) => track.id);
+    state.queueIndex = state.queue.indexOf(state.current);
+  }
+  const go = () => {
+    const next = nextQueueIndex(
+      state.queue,
+      state.queueIndex,
+      direction,
+      automatic,
+    );
+    if (next >= 0) play(state.queue[next], null, next);
+  };
+  if (nextQueueIndex(state.queue, state.queueIndex, direction, automatic) < 0)
+    return;
+  if (automatic) gap.schedule(go, state.gapSeconds);
+  else go();
 }
+$("openQueue").onclick = $("directQueue").onclick = () => {
+  renderQueue();
+  $("queueDialog").showModal();
+};
+$("closeQueue").onclick = () => $("queueDialog").close();
+$("queueTracks").onclick = (event) => {
+  const button = event.target.closest("[data-queue]");
+  if (!button) return;
+  const index = Number(button.dataset.index),
+    action = button.dataset.queue;
+  if (action === "play") {
+    play(state.queue[index], null, index);
+    return;
+  }
+  const changed =
+    action === "remove"
+      ? removeQueueItem(state.queue, state.queueIndex, index)
+      : moveQueueItem(
+          state.queue,
+          state.queueIndex,
+          index,
+          index + (action === "up" ? -1 : 1),
+        );
+  state.queue = changed.queue;
+  state.queueIndex = changed.cursor;
+  updateQueueInfo();
+  // Mantener el foco en el mismo tema después de moverlo con teclado.
+  const destination =
+    action === "up"
+      ? index - 1
+      : action === "down"
+        ? index + 1
+        : Math.min(index, state.queue.length - 1);
+  $("queueTracks")
+    .querySelector(`[data-queue="${action}"][data-index="${destination}"]`)
+    ?.focus();
+};
+$("enqueueSelected").onclick = () => {
+  const visible = filtered()
+    .map((track) => track.id)
+    .filter((id) => state.selected.has(id));
+  const ordered = [
+    ...visible,
+    ...[...state.selected].filter((id) => !visible.includes(id)),
+  ];
+  enqueue(ordered);
+  state.selected.clear();
+  render();
+};
 function runTempo(samples, rate) {
   return new Promise((resolve, reject) => {
     const worker = new Worker("tempo-worker.js", { type: "module" });
@@ -743,7 +850,11 @@ $("deleteTrack").onclick = async () => {
       for (const list of state.playlists)
         tx.objectStore("playlists").put(removeFromPlaylist(list, [t.id]));
     });
+    const before = state.queue
+      .slice(0, state.queueIndex + 1)
+      .filter((id) => id !== t.id).length;
     state.queue = state.queue.filter((id) => id !== t.id);
+    state.queueIndex = state.current === t.id ? -1 : before - 1;
     if (state.current === t.id) {
       audio.pause();
       audio.removeAttribute("src");
@@ -973,6 +1084,7 @@ $("tracks").onclick = async (e) => {
           .filter((track) => state.mode !== "player" || track.ready)
           .map((t) => t.id),
       );
+    if (b.dataset.action === "enqueue") enqueue([id]);
     if (b.dataset.action === "add") openAdd([id]);
     if (b.dataset.action === "up" || b.dataset.action === "down") {
       await savePlaylist(
@@ -1026,6 +1138,10 @@ $("playPause").onclick = () => {
   }
   if (state.current) {
     play(state.current);
+    return;
+  }
+  if (state.queue.length) {
+    play(state.queue[0], null, 0);
     return;
   }
   const available = filtered().filter(
@@ -1131,6 +1247,8 @@ function renderPlaylists() {
   }
 }
 function renderSelection(visible) {
+  visible = visible.filter((track) => state.mode !== "player" || track.ready);
+  $("enqueueSelected").disabled = !state.selected.size;
   $("selectedCount").textContent = `${state.selected.size} seleccionadas`;
   $("addSelected").disabled = $("removeSelected").disabled =
     !state.selected.size;
@@ -1289,7 +1407,9 @@ $("removeSelected").onclick = async () => {
   }
 };
 $("selectAll").onchange = () => {
-  for (const t of filtered())
+  for (const t of filtered().filter(
+    (track) => state.mode !== "player" || track.ready,
+  ))
     $("selectAll").checked
       ? state.selected.add(t.id)
       : state.selected.delete(t.id);
@@ -1393,6 +1513,7 @@ async function activateDatabase(active) {
   state.playlistId = null;
   state.selected.clear();
   state.queue = [];
+  state.queueIndex = -1;
   state.view = "all";
   document
     .querySelectorAll("[data-view]")
@@ -1422,7 +1543,8 @@ for (const id of [
   "editPlaylist",
   "duplicatePlaylist",
   "addToCurrent",
-  "selectionBar",
+  "addSelected",
+  "removeSelected",
   "publishBtn",
 ]) {
   $(id).classList.add("edit-only");
@@ -1439,7 +1561,7 @@ document
   .classList.add("edit-only");
 $("tracks")
   .closest("table")
-  .querySelectorAll("thead th.check-col, thead th:last-child")
+  .querySelectorAll("thead th:last-child")
   .forEach((node) => node.classList.add("edit-only"));
 document
   .querySelectorAll('[data-view="favorites"], [data-view="review"]')

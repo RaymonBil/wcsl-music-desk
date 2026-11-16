@@ -1218,7 +1218,6 @@ body[data-mode="player"] .edit-only,
 body[data-mode="choose"] .edit-only {
   display: none !important;
 }
-body[data-mode="player"] .row-select,
 body[data-mode="player"] .row-actions,
 body[data-mode="player"] .drag-handle,
 body[data-mode="player"] .row-move {
@@ -1391,4 +1390,68 @@ body[data-mode="player"] .row-move {
 #gapStatus,
 #directGapStatus {
   color: var(--pink);
+}
+
+#queueDialog {
+  width: min(740px, calc(100vw - 24px));
+  max-height: 85dvh;
+  overflow-y: auto;
+}
+.queue-tracks {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.queue-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--line, #353535);
+}
+.queue-current {
+  background: #26322c;
+  border-radius: 8px;
+}
+.queue-position {
+  color: #aaa;
+  min-width: 24px;
+}
+.queue-title {
+  flex: 1;
+  min-width: 0;
+}
+.queue-title strong,
+.queue-title small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.queue-title small {
+  color: #aaa;
+  margin-top: 4px;
+}
+.queue-actions {
+  display: flex;
+  gap: 4px;
+}
+.queue-actions button {
+  min-width: 42px;
+  min-height: 44px;
+  padding: 8px;
+}
+.enqueue-track {
+  padding: 5px 0;
+}
+@media (max-width: 600px) {
+  .queue-entry {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .queue-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .selection-bar {
+    flex-wrap: wrap;
+  }
 }

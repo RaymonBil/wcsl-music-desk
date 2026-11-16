@@ -60,7 +60,7 @@ export function createLiveController({
 
   function update() {
     const track = state.tracks.find((item) => item.id === state.current);
-    const index = state.queue.indexOf(state.current);
+    const index = state.queueIndex;
     const next = audio.loop
       ? track
       : state.tracks.find((item) => item.id === state.queue[index + 1]);

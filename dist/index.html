@@ -200,6 +200,8 @@
             ><input id="selectAll" type="checkbox" /> Seleccionar
             visibles</label
           ><span id="selectedCount">0 seleccionadas</span
+          ><button id="enqueueSelected" class="secondary">
+            ＋ Añadir a cola</button
           ><button id="addSelected" class="secondary">＋ Añadir a lista</button
           ><button id="removeSelected" class="secondary" hidden>
             Quitar de esta lista</button
@@ -268,11 +270,26 @@
           <label
             ><input id="continuous" type="checkbox" checked /> Reproducción
             continua</label
+          ><button id="openQueue" class="secondary">Ver cola (0)</button
           ><span id="queueInfo"></span
           ><label
             ><input id="wakeLockToggle" type="checkbox" /> Mantener pantalla
             activa</label
           ><small id="wakeLockStatus" role="status"></small>
+          <label
+            >Entre canciones
+            <input
+              id="gapSeconds"
+              type="number"
+              min="0"
+              max="60"
+              step="1"
+              value="0"
+              aria-label="Segundos entre canciones"
+            />
+            s</label
+          >
+          <small id="gapStatus" role="status"></small>
         </div>
         <div class="transport-buttons">
           <button
@@ -463,8 +480,9 @@
             placeholder="Qué trabajar con este tema…"
           ></textarea>
         </label>
-        <fieldset id="editMembership">
+        <fieldset>
           <legend>Listas de esta canción</legend>
+          <div id="editMembership"></div>
         </fieldset>
         <div class="dialog-foot">
           <button type="button" id="deleteTrack" class="danger">
@@ -659,6 +677,7 @@
       <p id="directArtist"></p>
       <strong id="directBpm"></strong>
       <p id="directNext"></p>
+      <button id="directQueue" class="secondary">Ver cola</button>
       <div class="direct-buttons">
         <button id="directPrev">⏮ Anterior</button
         ><button id="directPlay">▶ Reproducir</button
@@ -704,6 +723,19 @@
         </button>
       </div>
     </section>
+    <dialog id="queueDialog" aria-labelledby="queueTitle">
+      <div class="dialog-head">
+        <h2 id="queueTitle">Cola de reproducción</h2>
+        <button id="closeQueue" class="icon-button" aria-label="Cerrar cola">
+          ✕
+        </button>
+      </div>
+      <p id="queueSummary" class="muted"></p>
+      <p id="queueEmpty">
+        La cola está vacía. Marca canciones y pulsa «Añadir a cola».
+      </p>
+      <ol id="queueTracks" class="queue-tracks"></ol>
+    </dialog>
     <script type="module" src="app.js"></script>
   </body>
 </html>
