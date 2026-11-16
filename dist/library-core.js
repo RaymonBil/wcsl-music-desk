@@ -57,31 +57,60 @@ export function moveInPlaylist(list, id, direction) {
   [trackIds[i], trackIds[next]] = [trackIds[next], trackIds[i]];
   return { ...list, trackIds };
 }
+// El detector suele contar los dos golpes de cada pulso: en West Coast Swing la música
+// rara vez pasa de 135 BPM, así que una estimación automática de 140–260 se divide por dos.
+// Nunca se tocan los BPM confirmados a mano; el valor original se conserva en rawBpm.
+export const DOUBLE_TEMPO_MIN = 140;
+export const DOUBLE_TEMPO_MAX = 260;
 export function correctReportedDoubleTempo(track) {
-  const titles = String(track.title || "")
-    .split(" - ")
-    .map((s) =>
-      s
-        .toLowerCase()
-        .replace(/\([^)]*\)|\[[^\]]*\]/g, "")
-        .replace(/^\s*\d+[.\s_-]+/, "")
-        .trim(),
-    );
   if (
-    !titles.some((t) => t === "grow up" || t === "cool") ||
-    track.bpmSource === "manual" ||
-    track.bpm < 170 ||
-    track.bpm > 220 ||
-    track.bpmCorrectionVersion === 1
+    track.bpmSource !== "auto" ||
+    !(track.bpm >= DOUBLE_TEMPO_MIN && track.bpm <= DOUBLE_TEMPO_MAX) ||
+    (track.bpmCorrectionVersion || 0) >= 2
   )
     return track;
   return {
     ...track,
     rawBpm: track.rawBpm || track.bpm,
     bpm: Math.round((track.bpm / 2) * 10) / 10,
-    bpmCorrectionVersion: 1,
+    bpmCorrectionVersion: 2,
     bpmCorrection: "Pulso de baile ajustado (÷2)",
   };
+}
+
+// Nombre de archivo → título y artista. "title-artist": «Cool - Jonas Brothers.mp3».
+export const FILENAME_ORDERS = ["title-artist", "artist-title"];
+export function parseFilename(name, order = "title-artist") {
+  const base = String(name || "")
+    .replace(/\.[^.]+$/, "")
+    .replace(/\s*\(\d+\)\s*$/, "")
+    .trim();
+  const parts = base.split(" - ");
+  if (parts.length < 2) return { title: base, artist: "" };
+  if (order === "artist-title") {
+    const artist = parts.shift().trim();
+    return { title: parts.join(" - ").trim(), artist };
+  }
+  const artist = parts.pop().trim();
+  return { title: parts.join(" - ").trim(), artist };
+}
+function legacyParse(name) {
+  const parts = String(name || "").replace(/\.[^.]+$/, "").split(" - ");
+  const artist = parts.length > 1 ? parts.shift() : "";
+  return { title: parts.join(" - "), artist };
+}
+/** Recalcula título y artista desde el archivo solo si nadie los ha editado a mano. */
+export function applyFilenameOrder(track, order = "title-artist") {
+  if (!track?.filename) return track;
+  const artist = track.artist || "";
+  const untouched = [
+    ...FILENAME_ORDERS.map((o) => parseFilename(track.filename, o)),
+    legacyParse(track.filename),
+  ].some((v) => v.title === track.title && v.artist === artist);
+  if (!untouched) return track;
+  const next = parseFilename(track.filename, order);
+  if (next.title === track.title && next.artist === artist) return track;
+  return { ...track, ...next };
 }
 export function cleanTrack(record) {
   return {

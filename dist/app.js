@@ -26,6 +26,8 @@ import {
   speedDescription,
   supportsBackupVersion,
   normalizeGapSeconds,
+  parseFilename,
+  applyFilenameOrder,
 } from "./library-core.js";
 let team;
 let live;
@@ -374,11 +376,10 @@ async function importFiles(files) {
           errors++;
           continue;
         }
-        const parts = file.name.replace(/\.[^.]+$/, "").split(" - ");
-        const artist = parts.length > 1 ? parts.shift() : "";
+        const { title, artist } = parseFilename(file.name, filenameOrder());
         const t = {
           id,
-          title: parts.join(" - "),
+          title,
           artist,
           genre: "",
           tags: [],
@@ -477,6 +478,33 @@ async function play(id, queue = null, position = null) {
   }
 }
 // Con wifi flojo: se descarga la siguiente canción mientras suena la actual.
+// Formato de los nombres de archivo al importar: «Título - Artista» o «Artista - Título».
+function filenameOrder() {
+  try {
+    return localStorage.getItem("wcsl-filename-order") === "artist-title"
+      ? "artist-title"
+      : "title-artist";
+  } catch {
+    return "title-artist";
+  }
+}
+$("filenameOrder").value = filenameOrder();
+$("filenameOrder").onchange = async () => {
+  try {
+    localStorage.setItem("wcsl-filename-order", $("filenameOrder").value);
+  } catch {}
+  if (state.mode !== "edit") return;
+  let renamed = 0;
+  for (const t of state.tracks) {
+    const next = applyFilenameOrder(t, filenameOrder());
+    if (next !== t) {
+      await save(next);
+      renamed++;
+    }
+  }
+  await reload();
+  if (renamed) notify(`Título y artista recalculados en ${renamed} temas.`);
+};
 function prefetchNext() {
   if (!cloud || !state.queue.length) return;
   const next = nextQueueIndex(state.queue, state.queueIndex, 1, true);
@@ -1542,18 +1570,25 @@ async function init() {
       await cloud.start();
       await reload();
     }
-    let adjusted = 0;
+    let adjusted = 0,
+      renamed = 0;
     for (const t of state.mode === "edit" ? state.tracks : []) {
-      const corrected = correctReportedDoubleTempo(t);
-      if (corrected !== t) {
-        await save(corrected);
-        adjusted++;
-      }
+      const tempo = correctReportedDoubleTempo(t);
+      const corrected = applyFilenameOrder(tempo, filenameOrder());
+      if (tempo !== t) adjusted++;
+      if (corrected !== tempo) renamed++;
+      if (corrected !== t) await save(corrected);
     }
-    if (adjusted) {
+    if (adjusted || renamed) {
       await reload();
       notify(
-        `Pulso de baile ajustado en ${adjusted} temas reportados (÷2). El valor original se conserva en Editar.`,
+        [
+          adjusted &&
+            `BPM al doble corregido en ${adjusted} temas (÷2; el valor original se conserva en Editar)`,
+          renamed && `título y artista corregidos en ${renamed} temas`,
+        ]
+          .filter(Boolean)
+          .join(" · ") + ".",
       );
     }
     setBusy(false);

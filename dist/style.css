@@ -2103,3 +2103,9 @@ main {
     margin-left: auto;
   }
 }
+
+.filename-order select {
+  padding: 4px 8px;
+  font-size: 11px;
+  margin-left: 6px;
+}
