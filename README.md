@@ -1,4 +1,4 @@
-# WCSL Music Desk · v0.3
+# WCSL Music Desk · v0.4
 
 Aplicación web con módulos ES y archivos estáticos en `dist/`, sin frameworks, librerías ni servicios externos. Interfaz oscura en español para preparar clases y sociales de West Coast Swing. Esta versión usa audio local: publicar el código o un paquete del equipo no sube los MP3 a Internet.
 
@@ -83,3 +83,41 @@ Desde Workers & Pages, conecta el repositorio `RaymonBil/wcsl-music-desk`, selec
 Alternativa desde un equipo con Node compatible con Wrangler: `npx wrangler@4 login` y después `npx wrangler@4 deploy`. El inicio de sesión se hace directamente con Cloudflare; no publiques tokens ni contraseñas en GitHub.
 
 La nueva URL tiene otro origen y comienza con una biblioteca local vacía. Antes de trasladar tu uso, abre la dirección antigua y descarga una «Copia completa (con audio)»; en la nueva URL, elige gestión y restaura esa copia. Conserva la dirección antigua y los archivos originales hasta comprobar canciones, listas y reproducción. Para compartir audio por streaming habrá que añadir R2 privado, una API y permisos de cuenta: esta publicación estática todavía no proporciona esa función.
+
+
+## Versión 0.4 · Música en la nube (Cloudflare)
+
+La app se publica en Cloudflare Pages (`wcsl-music-desk.pages.dev`) y guarda la biblioteca en la nube de la cuenta de LWCS:
+
+- **Inicio de sesión**: Cloudflare Access protege todo el sitio (código por correo). La API vuelve a comprobar el token de Access y el rol en cada petición.
+- **Roles** (tabla `members` de D1, no en el repositorio): `admin` gestiona la música; `viewer` reproduce las listas, cambia la velocidad en directo y ordena su cola, sin poder modificar nada.
+- **Datos**: D1 `wcsl-music-db` guarda canciones (metadatos) y listas; R2 `wcsl-music` guarda el audio por su SHA-256 (R2 verifica el hash al subir).
+- **Gestión**: la biblioteca local sigue funcionando igual; cada cambio se sincroniza solo con D1 y el audio se sube a R2 en segundo plano (`dist/cloud-sync.js`, lógica pura en `dist/cloud-core.js`).
+- **Reproducción**: streaming desde `/api/audio/:id` con rangos. La siguiente canción se precarga **solo en memoria** (máximo 2); el servidor envía `Cache-Control: no-store`, así que la música no ocupa espacio en el dispositivo.
+- **Sin servidor o sin conexión**: la app vuelve al modo local de la 0.3.
+
+### API (`functions/api/[[route]].js` → `server/`)
+
+| Ruta | Método | Rol | Uso |
+| --- | --- | --- | --- |
+| `/api/me` | GET | todos | correo y rol |
+| `/api/library` | GET | todos | canciones y listas (ETag por revisión) |
+| `/api/changes` | POST | admin | lote de cambios (máx. 40) |
+| `/api/audio/:sha256` | GET/HEAD | todos | streaming con rangos |
+| `/api/audio/:sha256` | PUT/DELETE | admin | subir o borrar audio |
+| `/api/members` | GET | admin | miembros |
+
+### Alta y baja de personas
+
+En Cloudflare → D1 → `wcsl-music-db` → Consola:
+
+```sql
+INSERT OR REPLACE INTO members (email, role, name) VALUES ('correo@ejemplo.com', 'viewer', 'Nombre');
+DELETE FROM members WHERE email = 'correo@ejemplo.com';
+```
+
+El correo también debe estar permitido en la política de la aplicación de Cloudflare Access.
+
+### Pruebas
+
+`npm test` incluye la API con D1 (node:sqlite) y R2 simulados, la verificación de tokens de Access y la lógica de sincronización.
