@@ -28,6 +28,12 @@ const SCHEMA = [
      updated_by TEXT
    )`,
   `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value INTEGER NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS access_keys (
+     key_hash TEXT PRIMARY KEY,
+     role TEXT NOT NULL CHECK (role IN ('admin', 'viewer')),
+     label TEXT,
+     created_at INTEGER
+   )`,
   `INSERT OR IGNORE INTO meta (key, value) VALUES ('revision', 0)`,
 ];
 
@@ -182,4 +188,19 @@ export async function listMembers(db) {
     .prepare("SELECT email, role, name FROM members ORDER BY role, email")
     .all();
   return results;
+}
+
+/** Enlaces personales de acceso: en D1 solo se guarda el SHA-256 de la clave. */
+export async function hashKey(key) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(key)));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function findAccessKey(db, key) {
+  if (!key || typeof key !== "string" || key.length < 24 || key.length > 200) return null;
+  const row = await db
+    .prepare("SELECT role, label FROM access_keys WHERE key_hash = ?")
+    .bind(await hashKey(key))
+    .first();
+  return row && ROLES.has(row.role) ? row : null;
 }

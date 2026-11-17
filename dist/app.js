@@ -1534,6 +1534,12 @@ async function init() {
       else if (session.status === "offline")
         role = localStorage.getItem("wcsl-cloud-role");
     } catch {}
+    if (session.status === "signed-out") {
+      progress(
+        "Abre tu enlace personal de acceso en este dispositivo para entrar. Si no lo tienes, pídeselo a Ray.",
+      );
+      return;
+    }
     if (session.status === "forbidden") {
       progress(
         "Tu cuenta no tiene acceso a esta biblioteca. Pide a Ray que te dé de alta.",

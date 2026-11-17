@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { FakeD1, FakeR2, createAccessIssuer } from "./helpers/cloudflare-shims.js";
 import { handleApi, contentRange } from "../server/api.js";
 import { clearKeyCache, verifyAccessToken } from "../server/auth.js";
-import { ensureSchema } from "../server/store.js";
+import { ensureSchema, hashKey } from "../server/store.js";
 
 const TEAM = "https://equipo-prueba.cloudflareaccess.com";
 const AUD = "aud-prueba";
@@ -203,4 +203,58 @@ test("verifyAccessToken exige emisor del equipo", async () => {
   await assert.rejects(
     verifyAccessToken(token, { teamDomain: TEAM, audience: AUD, fetchKeys: issuer.fetchKeys }),
   );
+});
+
+const ADMIN_KEY = "clave-gestion-de-prueba-0123456789abcdef";
+const VIEWER_KEY = "clave-reproduccion-de-prueba-0123456789ab";
+async function addKeys() {
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO access_keys (key_hash, role, label) VALUES (?, 'admin', 'Ray')").bind(await hashKey(ADMIN_KEY)),
+    env.DB.prepare("INSERT INTO access_keys (key_hash, role, label) VALUES (?, 'viewer', 'María Jesús')").bind(await hashKey(VIEWER_KEY)),
+  ]);
+}
+const withKey = (key) => ({ email: null, headers: { Cookie: `otra=1; wcsl_key=${encodeURIComponent(key)}` } });
+
+test("enlace personal: /api/enter guarda la cookie un año y vuelve a la app", async () => {
+  await addKeys();
+  const res = await call(`enter?k=${encodeURIComponent(ADMIN_KEY)}`, { email: null });
+  assert.equal(res.status, 302);
+  assert.equal(res.headers.get("Location"), "/");
+  const cookie = res.headers.get("Set-Cookie");
+  assert.match(cookie, /^wcsl_key=/);
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /Secure/);
+  assert.match(cookie, /Max-Age=31536000/);
+});
+
+test("enlace no válido: 403 y sin cookie", async () => {
+  await addKeys();
+  const res = await call("enter?k=clave-inventada-que-no-existe-000000", { email: null });
+  assert.equal(res.status, 403);
+  assert.equal(res.headers.get("Set-Cookie"), null);
+  assert.equal((await call("me", withKey("clave-inventada-que-no-existe-000000"))).status, 401);
+});
+
+test("con la cookie se entra sin código y se respeta el rol de la clave", async () => {
+  await addKeys();
+  assert.deepEqual(await (await call("me", withKey(ADMIN_KEY))).json(), { email: "Ray", role: "admin" });
+  const viewer = await (await call("me", withKey(VIEWER_KEY))).json();
+  assert.equal(viewer.role, "viewer");
+  assert.equal((await call("library", withKey(VIEWER_KEY))).status, 200);
+  const write = await call("changes", { ...withKey(VIEWER_KEY), method: "POST", body: JSON.stringify({ tracks: [track(audioId)] }) });
+  assert.equal(write.status, 403);
+  const ok = await call("changes", { ...withKey(ADMIN_KEY), method: "POST", body: JSON.stringify({ tracks: [track(audioId)] }) });
+  assert.equal(ok.status, 200);
+});
+
+test("una clave anulada deja de funcionar al momento", async () => {
+  await addKeys();
+  await env.DB.prepare("DELETE FROM access_keys WHERE label = 'María Jesús'").run();
+  assert.equal((await call("me", withKey(VIEWER_KEY))).status, 401);
+});
+
+test("salir borra la cookie", async () => {
+  const res = await call("salir", { email: null });
+  assert.equal(res.status, 302);
+  assert.match(res.headers.get("Set-Cookie"), /Max-Age=0/);
 });

@@ -7,6 +7,7 @@ import {
   ensureSchema,
   getRole,
   getRevision,
+  findAccessKey,
   readLibraryJson,
   buildChangeStatements,
   markAudio,
@@ -35,7 +36,26 @@ function isLocal(request) {
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
+export const KEY_COOKIE = "wcsl_key";
+const KEY_MAX_AGE = 365 * 24 * 60 * 60;
+
+export function readKeyCookie(request) {
+  const cookie = request.headers.get("Cookie") || "";
+  const match = cookie.match(/(?:^|;\s*)wcsl_key=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * ¿Quién llama? 1) enlace personal (cookie wcsl_key) → rol de la clave;
+ * 2) token de Cloudflare Access → rol del correo en `members`.
+ */
 export async function identify(request, env, options = {}) {
+  await ensureSchema(env.DB);
+  const key = readKeyCookie(request);
+  if (key) {
+    const found = await findAccessKey(env.DB, key);
+    if (found) return { email: found.label || "enlace personal", role: found.role };
+  }
   // Solo en desarrollo local y sin Access configurado se admite un correo de prueba.
   if (!env.ACCESS_AUD && env.DEV_EMAIL && isLocal(request))
     return { email: String(env.DEV_EMAIL).toLowerCase() };
@@ -43,6 +63,45 @@ export async function identify(request, env, options = {}) {
     teamDomain: env.ACCESS_TEAM_DOMAIN,
     audience: env.ACCESS_AUD,
     ...options,
+  });
+}
+
+function page(title, text, status = 200) {
+  return new Response(
+    `<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui;background:#141118;color:#f4eefa;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px;text-align:center"><div><h1 style="font-size:22px">${title}</h1><p style="color:#b9adc6">${text}</p></div></body></html>`,
+    { status, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } },
+  );
+}
+
+/** /api/enter?k=… guarda el enlace personal en este dispositivo durante un año. */
+async function enter(request, env) {
+  await ensureSchema(env.DB);
+  const key = new URL(request.url).searchParams.get("k");
+  const found = await findAccessKey(env.DB, key);
+  if (!found)
+    return page(
+      "Enlace no válido",
+      "Este enlace de acceso no existe o se ha anulado. Pide uno nuevo a Ray.",
+      403,
+    );
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: "/",
+      "Cache-Control": "no-store",
+      "Set-Cookie": `${KEY_COOKIE}=${encodeURIComponent(key)}; Path=/; Max-Age=${KEY_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`,
+    },
+  });
+}
+
+function leave() {
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: "/",
+      "Cache-Control": "no-store",
+      "Set-Cookie": `${KEY_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+    },
   });
 }
 
@@ -121,14 +180,15 @@ export async function handleApi(request, env, options = {}) {
   const method = request.method.toUpperCase();
 
   if (!env.DB || !env.AUDIO) return fail(503, "Almacenamiento no configurado");
+  if (path === "enter" && method === "GET") return enter(request, env);
+  if (path === "salir" && method === "GET") return leave();
   let user;
   try {
     user = await identify(request, env, options);
   } catch (error) {
-    return fail(401, "Inicia sesión para continuar");
+    return fail(401, "Abre tu enlace personal de acceso para entrar");
   }
-  await ensureSchema(env.DB);
-  const role = await getRole(env.DB, user.email);
+  const role = user.role || (await getRole(env.DB, user.email));
   if (!role) return fail(403, "Tu cuenta no tiene acceso a esta biblioteca");
   const admin = role === "admin";
   const needAdmin = () => fail(403, "Solo la gestión puede modificar la biblioteca");
