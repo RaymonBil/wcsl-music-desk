@@ -121,3 +121,12 @@ El correo también debe estar permitido en la política de la aplicación de Clo
 ### Pruebas
 
 `npm test` incluye la API con D1 (node:sqlite) y R2 simulados, la verificación de tokens de Access y la lógica de sincronización.
+
+### Acceso con enlace personal (sin códigos)
+
+Mientras la app no sea definitiva, el inicio de sesión de Cloudflare Access está desactivado en la dirección principal. Cada persona tiene un **enlace personal** (`/api/enter?k=…`) que guarda una cookie segura durante un año en el dispositivo; `/api/salir` la borra.
+
+- En D1 solo se guarda el SHA-256 de cada clave (tabla `access_keys`, con su rol).
+- Anular un enlace: `DELETE FROM access_keys WHERE label = 'Nombre';` (deja de funcionar al momento en todos los dispositivos).
+- Crear uno nuevo: generar una clave aleatoria larga, guardar su SHA-256 con `INSERT INTO access_keys (key_hash, role, label) VALUES (…)` y enviar el enlace `https://wcsl-music-desk.pages.dev/api/enter?k=CLAVE`.
+- Si se vuelve a activar Cloudflare Access, la API lo sigue admitiendo (añadir la AUD en `wrangler.toml`).
